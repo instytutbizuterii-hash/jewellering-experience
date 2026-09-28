@@ -1,23 +1,21 @@
-# Jewellering Experience — v0.1.1
+# Jewellering Experience — v0.1.2
 
-Pierwszy prototyp interaktywnego doświadczenia Jewellering dla Instytutu Biżuterii.
+Interaktywny, mobile-first prototyp doświadczenia Jewellering.
 
-## Uruchomienie
+## Zmiany w v0.1.2
 
-Wersja nie wymaga frameworka ani instalacji zależności. Otwórz `index.html` w przeglądarce albo uruchom dowolny prosty serwer statyczny.
+- usunięte zdublowane instrukcje przy wejściu,
+- poszerzony obszar renderowania odręcznego napisu `Jewellering`, aby końcówki liter nie były ucinane,
+- przycisk wejścia działa przez przytrzymanie i pokazuje postęp wypełnieniem,
+- po pełnym przytrzymaniu pojawia się subtelny impuls cząsteczek,
+- przejście nie wyjeżdża już od dołu — cała scena wygasza się do pełnej czerni,
+- kolejna scena pojawia się dopiero z blackoutu,
+- poprawione działanie przycisku `WRÓĆ NA POCZĄTEK`.
 
-## Zakres v0.1.1
+## Uruchomienie lokalne
 
-- mobile-first,
-- wejście z animowanym, odręcznym napisem bez podpisu Instytut Biżuterii,
-- poprawione pole odręcznej typografii, aby końcówki liter nie były ucinane,
-- wejście przez przytrzymanie CTA z animowanym paskiem postępu,
-- przejście z jasnego tła do czerni po kliknięciu CTA,
-- pełnoekranowe sceny,
-- animacja sterowana scrollem,
-- testowy line-art rozwijającego się kwiatu,
-- powrót z czerni do jasnej sceny,
-- obsługa `prefers-reduced-motion`,
-- brak bibliotek JS — lekka baza pod NFC i hosting statyczny.
+Otwórz `index.html` w przeglądarce.
 
-Treści są robocze i będą zastępowane właściwą filozofią Jewellering.
+## GitHub Pages
+
+Pliki powinny znajdować się bezpośrednio w głównym katalogu repozytorium. GitHub Pages może publikować gałąź `main` z katalogu `/ (root)`.

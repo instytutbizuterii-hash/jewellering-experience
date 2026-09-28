@@ -4,6 +4,8 @@ const intro = document.querySelector('#intro');
 const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
 const restartButton = document.querySelector('#restartButton');
+const blackout = document.querySelector('#blackout');
+const completionParticles = document.querySelector('#completionParticles');
 const story = document.querySelector('#story');
 const storyHalo = document.querySelector('#storyHalo');
 const bloomStem = document.querySelector('#bloomStem');
@@ -17,6 +19,10 @@ const scrollMarker = document.querySelector('#scrollMarker');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const HOLD_DURATION = reducedMotion ? 250 : 1400;
+const PARTICLE_DELAY = reducedMotion ? 0 : 110;
+const BLACKOUT_DURATION = reducedMotion ? 0 : 780;
+const REVEAL_DELAY = reducedMotion ? 0 : 170;
+
 let entered = false;
 let frame = 0;
 let holdFrame = 0;
@@ -35,13 +41,51 @@ function cancelHold() {
   setHoldProgress(0);
 }
 
+function createCompletionParticles() {
+  if (reducedMotion) return;
+
+  completionParticles.replaceChildren();
+  const rect = enterButton.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const particleCount = 16;
+
+  for (let index = 0; index < particleCount; index += 1) {
+    const particle = document.createElement('span');
+    const angle = (Math.PI * 2 * index) / particleCount;
+    const distance = 22 + (index % 4) * 9;
+    const offsetX = Math.cos(angle) * distance;
+    const offsetY = Math.sin(angle) * distance * 0.72;
+
+    particle.style.setProperty('--x', `${centerX}px`);
+    particle.style.setProperty('--y', `${centerY}px`);
+    particle.style.setProperty('--dx', `${offsetX.toFixed(1)}px`);
+    particle.style.setProperty('--dy', `${offsetY.toFixed(1)}px`);
+    particle.style.setProperty('--size', `${2 + (index % 3)}px`);
+    particle.style.setProperty('--delay', `${(index % 4) * 18}ms`);
+    completionParticles.appendChild(particle);
+  }
+
+  window.setTimeout(() => completionParticles.replaceChildren(), 900);
+}
+
+function prepareBlackoutOrigin() {
+  const rect = enterButton.getBoundingClientRect();
+  const x = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
+  const y = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
+  blackout.style.setProperty('--blackout-x', `${x.toFixed(2)}%`);
+  blackout.style.setProperty('--blackout-y', `${y.toFixed(2)}%`);
+}
+
 function finishHold() {
   holding = false;
   cancelAnimationFrame(holdFrame);
   setHoldProgress(1);
   enterButton.classList.remove('is-holding');
   enterButton.classList.add('is-complete');
-  enterExperience();
+  createCompletionParticles();
+  prepareBlackoutOrigin();
+  window.setTimeout(enterExperience, PARTICLE_DELAY);
 }
 
 function updateHold(now) {
@@ -71,19 +115,42 @@ function startHold(event) {
 function enterExperience() {
   if (entered) return;
   entered = true;
-  intro.classList.add('is-leaving');
+  intro.classList.add('is-blackout');
+  blackout.classList.add('is-active');
 
   window.setTimeout(() => {
     experience.hidden = false;
+    experience.classList.remove('is-revealed');
     intro.hidden = true;
     document.body.classList.add('experience-started');
     window.scrollTo(0, 0);
     requestAnimationFrame(updateStory);
-  }, reducedMotion ? 0 : 880);
+
+    window.setTimeout(() => {
+      experience.classList.add('is-revealed');
+      blackout.classList.remove('is-active');
+    }, REVEAL_DELAY);
+  }, BLACKOUT_DURATION);
 }
 
 function restartExperience() {
-  window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+  blackout.classList.add('is-active');
+
+  window.setTimeout(() => {
+    window.scrollTo(0, 0);
+    experience.classList.remove('is-revealed');
+    experience.hidden = true;
+    intro.hidden = false;
+    intro.classList.remove('is-blackout');
+    enterButton.classList.remove('is-complete', 'is-holding');
+    setHoldProgress(0);
+    entered = false;
+    document.body.classList.remove('experience-started');
+
+    requestAnimationFrame(() => {
+      blackout.classList.remove('is-active');
+    });
+  }, reducedMotion ? 0 : 500);
 }
 
 function updateStory() {
