@@ -6,6 +6,11 @@ const enterButton = document.querySelector('#enterButton');
 const restartButton = document.querySelector('#restartButton');
 const blackout = document.querySelector('#blackout');
 const completionParticles = document.querySelector('#completionParticles');
+
+const wordmark = document.querySelector('#wordmark');
+const wordmarkCursor = document.querySelector('#wordmarkCursor');
+const wordmarkMaskStrokes = [...document.querySelectorAll('#wordmarkMask [data-write-source]')];
+
 const story = document.querySelector('#story');
 const storyHalo = document.querySelector('#storyHalo');
 const bloomStem = document.querySelector('#bloomStem');
@@ -16,21 +21,160 @@ const storyCopyOne = document.querySelector('#storyCopyOne');
 const storyCopyTwo = document.querySelector('#storyCopyTwo');
 const storyCopyThree = document.querySelector('#storyCopyThree');
 const scrollMarker = document.querySelector('#scrollMarker');
+
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const HOLD_DURATION = reducedMotion ? 250 : 1400;
 const PARTICLE_DELAY = reducedMotion ? 0 : 110;
 const BLACKOUT_DURATION = reducedMotion ? 0 : 780;
 const REVEAL_DELAY = reducedMotion ? 0 : 170;
+const HANDWRITING_TARGET_DURATION = 2350;
+const HANDWRITING_START_DELAY = 360;
 
 let entered = false;
-let frame = 0;
+let scrollFrame = 0;
 let holdFrame = 0;
 let holdStartedAt = 0;
 let holding = false;
+let introRunId = 0;
+let introTimers = [];
+let bloomStemLength = 0;
+
+const handwritingStrokes = wordmarkMaskStrokes.map((maskStroke) => {
+  const sourceId = maskStroke.dataset.writeSource;
+  const sourcePath = document.getElementById(sourceId);
+
+  if (!sourcePath) {
+    throw new Error(`Brak ścieżki wordmarku: ${sourceId}`);
+  }
+
+  const length = Math.max(sourcePath.getTotalLength(), 0.1);
+  maskStroke.style.strokeDasharray = `${length}`;
+  maskStroke.style.strokeDashoffset = `${length}`;
+
+  return {
+    maskStroke,
+    sourcePath,
+    length,
+    pause: Number(maskStroke.dataset.writePause || 26),
+  };
+});
+
+const totalHandwritingLength = handwritingStrokes.reduce((sum, stroke) => sum + stroke.length, 0);
+bloomStemLength = Math.max(bloomStem.getTotalLength(), 1);
+wordmark.classList.add('is-prepared');
+
+function clearIntroTimers() {
+  introTimers.forEach(window.clearTimeout);
+  introTimers = [];
+}
+
+function scheduleIntro(callback, delay, runId) {
+  const timer = window.setTimeout(() => {
+    if (runId === introRunId) callback();
+  }, delay);
+  introTimers.push(timer);
+}
+
+function setCursorOnStroke(stroke, progress) {
+  const point = stroke.sourcePath.getPointAtLength(stroke.length * clamp(progress));
+  wordmarkCursor.setAttribute('cx', point.x.toFixed(2));
+  wordmarkCursor.setAttribute('cy', point.y.toFixed(2));
+}
+
+function resetHandwritingGeometry() {
+  handwritingStrokes.forEach((stroke) => {
+    stroke.maskStroke.style.strokeDashoffset = `${stroke.length}`;
+  });
+
+  if (handwritingStrokes.length) {
+    setCursorOnStroke(handwritingStrokes[0], 0);
+  }
+
+  wordmark.classList.remove('is-writing', 'is-complete');
+}
+
+function revealIntroCopy(runId) {
+  scheduleIntro(() => intro.classList.add('is-copy-one-visible'), 260, runId);
+  scheduleIntro(() => intro.classList.add('is-copy-two-visible'), 760, runId);
+  scheduleIntro(() => intro.classList.add('is-cta-visible'), 1370, runId);
+}
+
+function finishHandwriting(runId) {
+  if (runId !== introRunId) return;
+
+  wordmark.classList.remove('is-writing');
+  wordmark.classList.add('is-complete');
+  revealIntroCopy(runId);
+}
+
+function animateHandwritingStroke(index, runId) {
+  if (runId !== introRunId) return;
+
+  if (index >= handwritingStrokes.length) {
+    finishHandwriting(runId);
+    return;
+  }
+
+  const stroke = handwritingStrokes[index];
+  const proportionalDuration = HANDWRITING_TARGET_DURATION * (stroke.length / totalHandwritingLength);
+  const duration = clamp(proportionalDuration, 65, 520);
+  const startedAt = performance.now();
+
+  setCursorOnStroke(stroke, 0);
+
+  function tick(now) {
+    if (runId !== introRunId) return;
+
+    const linearProgress = clamp((now - startedAt) / duration);
+    const easedProgress = 1 - Math.pow(1 - linearProgress, 2.15);
+    stroke.maskStroke.style.strokeDashoffset = `${stroke.length * (1 - easedProgress)}`;
+    setCursorOnStroke(stroke, easedProgress);
+
+    if (linearProgress < 1) {
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    stroke.maskStroke.style.strokeDashoffset = '0';
+    scheduleIntro(() => animateHandwritingStroke(index + 1, runId), stroke.pause, runId);
+  }
+
+  requestAnimationFrame(tick);
+}
+
+function playIntroSequence() {
+  introRunId += 1;
+  const runId = introRunId;
+  clearIntroTimers();
+
+  intro.classList.remove('is-copy-one-visible', 'is-copy-two-visible', 'is-cta-visible');
+  resetHandwritingGeometry();
+
+  if (reducedMotion) {
+    handwritingStrokes.forEach((stroke) => {
+      stroke.maskStroke.style.strokeDashoffset = '0';
+    });
+    wordmark.classList.add('is-complete');
+    intro.classList.add('is-copy-one-visible', 'is-copy-two-visible', 'is-cta-visible');
+    return;
+  }
+
+  scheduleIntro(() => {
+    wordmark.classList.add('is-writing');
+    animateHandwritingStroke(0, runId);
+  }, HANDWRITING_START_DELAY, runId);
+}
 
 function setHoldProgress(progress) {
   enterButton.style.setProperty('--hold-progress', `${Math.round(clamp(progress) * 100)}%`);
+}
+
+function resetHold() {
+  holding = false;
+  cancelAnimationFrame(holdFrame);
+  enterButton.classList.remove('is-holding', 'is-complete');
+  setHoldProgress(0);
 }
 
 function cancelHold() {
@@ -90,6 +234,7 @@ function finishHold() {
 
 function updateHold(now) {
   if (!holding || entered) return;
+
   const progress = (now - holdStartedAt) / HOLD_DURATION;
   setHoldProgress(progress);
 
@@ -102,8 +247,9 @@ function updateHold(now) {
 }
 
 function startHold(event) {
-  if (entered || holding) return;
+  if (entered || holding || !intro.classList.contains('is-cta-visible')) return;
   if (event.type === 'pointerdown' && event.button !== 0) return;
+
   event.preventDefault();
   holding = true;
   holdStartedAt = performance.now();
@@ -114,7 +260,10 @@ function startHold(event) {
 
 function enterExperience() {
   if (entered) return;
+
   entered = true;
+  clearIntroTimers();
+  introRunId += 1;
   intro.classList.add('is-blackout');
   blackout.classList.add('is-active');
 
@@ -142,10 +291,10 @@ function restartExperience() {
     experience.hidden = true;
     intro.hidden = false;
     intro.classList.remove('is-blackout');
-    enterButton.classList.remove('is-complete', 'is-holding');
-    setHoldProgress(0);
-    entered = false;
     document.body.classList.remove('experience-started');
+    entered = false;
+    resetHold();
+    playIntroSequence();
 
     requestAnimationFrame(() => {
       blackout.classList.remove('is-active');
@@ -154,7 +303,7 @@ function restartExperience() {
 }
 
 function updateStory() {
-  if (!story || story.hidden) return;
+  if (!story || experience.hidden) return;
 
   const rect = story.getBoundingClientRect();
   const scrollable = Math.max(rect.height - window.innerHeight, 1);
@@ -165,10 +314,8 @@ function updateStory() {
   const bloomTwo = clamp((progress - 0.53) / 0.47);
 
   storyHalo.style.opacity = String(0.22 + progress * 0.52);
-
-  const stemLength = 510;
-  bloomStem.style.strokeDasharray = String(stemLength);
-  bloomStem.style.strokeDashoffset = String(stemLength - Math.round(stemLength * progress));
+  bloomStem.style.strokeDasharray = String(bloomStemLength);
+  bloomStem.style.strokeDashoffset = String(bloomStemLength * (1 - progress));
 
   bloomLeafOne.style.opacity = String(bloom);
   bloomLeafOne.style.transform = `scale(${0.84 + bloom * 0.16})`;
@@ -190,8 +337,8 @@ function updateStory() {
 }
 
 function onScroll() {
-  cancelAnimationFrame(frame);
-  frame = requestAnimationFrame(updateStory);
+  cancelAnimationFrame(scrollFrame);
+  scrollFrame = requestAnimationFrame(updateStory);
 }
 
 enterButton.addEventListener('pointerdown', startHold);
@@ -207,3 +354,5 @@ enterButton.addEventListener('keyup', (event) => {
 restartButton.addEventListener('click', restartExperience);
 window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('resize', onScroll);
+
+playIntroSequence();
