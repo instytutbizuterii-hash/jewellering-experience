@@ -1,24 +1,18 @@
-# Jewellering Experience — v0.1.4
+# Jewellering Experience
 
-Interaktywny, mobile-first prototyp doświadczenia Jewellering.
+Wersja: **0.1.5**
 
-## v0.1.4 — Readable Handwriting + deterministic i-dot
+Interaktywne, mobile-first doświadczenie Jewellering uruchamiane głównie przez NFC.
 
-Intro zostało przebudowane w dwóch miejscach:
+## Uruchomienie
 
-- wordmark korzysta z czytelniejszego kroju odręcznego `Allura`,
-- maska nadal porusza się po kolejnych literach zamiast odsłaniać napis poziomym prostokątem,
-- finalny tekst i geometria pisania są rozdzielone: font odpowiada za wygląd, trajektorie odpowiadają za ruch,
-- `i` jest renderowane bez kropki, a kropka jest osobnym elementem SVG,
-- kropka pozostaje fizycznie ukryta do właściwego momentu animacji, także na telefonie,
-- po ukończeniu pisania maska zostaje zdjęta, aby finalny wordmark był zawsze kompletny i czytelny.
+Projekt jest statyczny. Otwórz `index.html` lokalnie albo opublikuj zawartość tego katalogu przez GitHub Pages.
 
-Projekt nie wymaga bundlera ani instalacji zależności.
+## v0.1.5
 
-## Uruchomienie lokalne
-
-Otwórz `index.html` w przeglądarce. Połączenie z internetem pozwala pobrać fonty z Google Fonts; przy ich braku aplikacja ma fallback i nie blokuje intro.
-
-## GitHub Pages
-
-Pliki z tego folderu powinny znajdować się bezpośrednio w głównym katalogu repozytorium. GitHub Pages może publikować gałąź `main` z `/ (root)`.
+- statyczny wektor wordmarku `Jewellering` — brak runtime pomiaru fontu,
+- maska handwriting dopasowana do faktycznej geometrii zaakceptowanego napisu,
+- kropka nad `i` jest częścią finalnego wordmarku i tylko zostaje odsłonięta przez maskę,
+- usunięto cursor, `getExtentOfChar()`, dotless `ı` i generatory trajektorii liter,
+- poprawiono centrowanie intro na mobile,
+- hold CTA, particles, blackout i dalsze sceny pozostają na dotychczasowym fundamencie.

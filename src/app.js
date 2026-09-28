@@ -8,10 +8,8 @@ const blackout = document.querySelector('#blackout');
 const completionParticles = document.querySelector('#completionParticles');
 
 const wordmark = document.querySelector('#wordmark');
-const wordmarkText = document.querySelector('#wordmarkText');
-const wordmarkMask = document.querySelector('#wordmarkMask');
-const wordmarkIDot = document.querySelector('#wordmarkIDot');
-const wordmarkCursor = document.querySelector('#wordmarkCursor');
+const wordmarkMaskStrokes = Array.from(document.querySelectorAll('.wordmark-mask-stroke'));
+const wordmarkDotMask = document.querySelector('#wordmarkDotMask');
 
 const story = document.querySelector('#story');
 const storyHalo = document.querySelector('#storyHalo');
@@ -30,11 +28,8 @@ const HOLD_DURATION = reducedMotion ? 250 : 1400;
 const PARTICLE_DELAY = reducedMotion ? 0 : 110;
 const BLACKOUT_DURATION = reducedMotion ? 0 : 780;
 const REVEAL_DELAY = reducedMotion ? 0 : 170;
-const HANDWRITING_TARGET_DURATION = 2550;
+const HANDWRITING_TARGET_DURATION = 3000;
 const HANDWRITING_START_DELAY = 360;
-const WORDMARK_TEXT = 'Jewellerıng';
-const WORDMARK_I_INDEX = 8;
-const SVG_NS = 'http://www.w3.org/2000/svg';
 
 let entered = false;
 let scrollFrame = 0;
@@ -44,9 +39,8 @@ let holding = false;
 let introRunId = 0;
 let introTimers = [];
 let bloomStemLength = 0;
-let handwritingSteps = [];
-let totalHandwritingLength = 1;
-let wordmarkPrepared = false;
+let handwritingPrepared = false;
+let handwritingStrokeData = [];
 
 bloomStemLength = Math.max(bloomStem.getTotalLength(), 1);
 
@@ -62,144 +56,52 @@ function scheduleIntro(callback, delay, runId) {
   introTimers.push(timer);
 }
 
-function point(box, x, y) {
-  return {
-    x: box.x + box.width * x,
-    y: box.y + box.height * y,
-  };
+function easeWriting(value) {
+  const progress = clamp(value);
+  return progress * progress * (3 - 2 * progress);
 }
 
-function pathPoint(value) {
-  return `${value.x.toFixed(2)} ${value.y.toFixed(2)}`;
-}
-
-function createCharacterPath(character, box) {
-  const p = (x, y) => point(box, x, y);
-  const M = (x, y) => `M ${pathPoint(p(x, y))}`;
-  const C = (x1, y1, x2, y2, x3, y3) => `C ${pathPoint(p(x1, y1))} ${pathPoint(p(x2, y2))} ${pathPoint(p(x3, y3))}`;
-
-  switch (character.toLowerCase()) {
-    case 'j':
-      return `${M(.78, .08)} ${C(.66, .18, .60, .45, .56, .63)} ${C(.51, .84, .34, 1.04, .12, .88)}`;
-    case 'e':
-      return `${M(.08, .62)} ${C(.25, .46, .54, .44, .68, .57)} ${C(.75, .69, .57, .77, .31, .72)} ${C(.49, .88, .79, .82, .95, .66)}`;
-    case 'w':
-      return `${M(.03, .54)} ${C(.13, .73, .22, .87, .33, .62)} ${C(.40, .47, .44, .78, .55, .82)} ${C(.66, .86, .72, .61, .78, .48)} ${C(.82, .67, .87, .79, .97, .65)}`;
-    case 'l':
-      return `${M(.12, .78)} ${C(.30, .59, .45, .32, .44, .10)} ${C(.43, -.02, .31, .03, .32, .22)} ${C(.33, .49, .53, .77, .77, .80)} ${C(.86, .82, .92, .75, .98, .67)}`;
-    case 'r':
-      return `${M(.07, .64)} ${C(.18, .77, .29, .82, .40, .69)} ${C(.48, .59, .51, .48, .57, .39)} ${C(.60, .58, .67, .73, .82, .64)} ${C(.88, .60, .93, .56, .98, .51)}`;
-    case 'ı':
-      return `${M(.08, .62)} ${C(.22, .77, .35, .82, .48, .70)} ${C(.59, .60, .64, .51, .71, .45)} ${C(.68, .63, .74, .78, .94, .66)}`;
-    case 'n':
-      return `${M(.05, .65)} ${C(.17, .77, .29, .81, .41, .68)} ${C(.50, .58, .53, .45, .61, .43)} ${C(.75, .41, .73, .68, .79, .76)} ${C(.85, .84, .93, .73, .98, .64)}`;
-    case 'g':
-      return `${M(.06, .58)} ${C(.23, .44, .53, .46, .63, .61)} ${C(.72, .76, .57, .89, .38, .83)} ${C(.20, .77, .22, .57, .40, .51)} ${C(.60, .43, .77, .56, .78, .74)} ${C(.80, .97, .70, 1.18, .51, 1.22)} ${C(.31, 1.25, .18, 1.09, .26, .96)}`;
-    default:
-      return `${M(.06, .64)} ${C(.30, .48, .67, .82, .96, .62)}`;
-  }
-}
-
-function getCharacterBox(index) {
-  try {
-    const extent = wordmarkText.getExtentOfChar(index);
-    return {
-      x: extent.x,
-      y: extent.y,
-      width: Math.max(extent.width, 12),
-      height: Math.max(extent.height, 24),
-    };
-  } catch (error) {
-    const width = 70;
-    return {
-      x: 72 + index * width,
-      y: 58,
-      width,
-      height: 142,
-    };
-  }
-}
-
-function hideIDot() {
-  wordmarkIDot.classList.remove('is-visible');
-  wordmarkIDot.setAttribute('visibility', 'hidden');
-}
-
-function showIDot() {
-  wordmarkIDot.setAttribute('visibility', 'visible');
-  requestAnimationFrame(() => wordmarkIDot.classList.add('is-visible'));
-}
-
-function buildHandwritingGeometry() {
-  wordmarkMask.replaceChildren();
-  handwritingSteps = [];
-
-  for (let index = 0; index < WORDMARK_TEXT.length; index += 1) {
-    const character = WORDMARK_TEXT[index];
-    const box = getCharacterBox(index);
-    const path = document.createElementNS(SVG_NS, 'path');
-
-    path.setAttribute('d', createCharacterPath(character, box));
-    path.classList.add('wordmark-mask-stroke');
-    wordmarkMask.appendChild(path);
-
+function prepareWordmark() {
+  handwritingStrokeData = wordmarkMaskStrokes.map((path) => {
     const length = Math.max(path.getTotalLength(), 1);
+    const start = Number(path.dataset.start ?? 0);
+    const end = Number(path.dataset.end ?? 1);
+
     path.style.strokeDasharray = `${length}`;
     path.style.strokeDashoffset = `${length}`;
 
-    handwritingSteps.push({
-      type: 'stroke',
-      path,
-      length,
-      pause: character === 'J' ? 34 : 20,
-    });
+    return { path, length, start, end };
+  });
 
-    if (index === WORDMARK_I_INDEX) {
-      const dotX = box.x + box.width * .52;
-      const dotY = box.y - Math.max(9, box.height * .15);
-      wordmarkIDot.setAttribute('cx', dotX.toFixed(2));
-      wordmarkIDot.setAttribute('cy', dotY.toFixed(2));
-      handwritingSteps.push({
-        type: 'dot',
-        x: dotX,
-        y: dotY,
-        length: 22,
-        pause: 54,
-      });
-    }
-  }
-
-  totalHandwritingLength = Math.max(
-    handwritingSteps.reduce((sum, step) => sum + step.length, 0),
-    1,
-  );
-
-  wordmarkPrepared = true;
+  wordmarkDotMask.style.opacity = '0';
+  wordmarkDotMask.setAttribute('r', '0');
+  handwritingPrepared = true;
   wordmark.classList.add('is-prepared');
+  playIntroSequence();
 }
 
-function setCursorOnPath(path, length, progress) {
-  const current = path.getPointAtLength(length * clamp(progress));
-  wordmarkCursor.setAttribute('cx', current.x.toFixed(2));
-  wordmarkCursor.setAttribute('cy', current.y.toFixed(2));
+function setHandwritingProgress(progress) {
+  const globalProgress = clamp(progress);
+
+  handwritingStrokeData.forEach(({ path, length, start, end }) => {
+    const range = Math.max(end - start, 0.001);
+    const local = easeWriting((globalProgress - start) / range);
+    path.style.strokeDashoffset = `${length * (1 - local)}`;
+  });
+
+  const dotStart = Number(wordmarkDotMask.dataset.start ?? 0.65);
+  const dotEnd = Number(wordmarkDotMask.dataset.end ?? 0.675);
+  const dotRadius = Number(wordmarkDotMask.dataset.radius ?? 10);
+  const dotRange = Math.max(dotEnd - dotStart, 0.001);
+  const dotProgress = easeWriting((globalProgress - dotStart) / dotRange);
+
+  wordmarkDotMask.style.opacity = String(dotProgress);
+  wordmarkDotMask.setAttribute('r', `${dotRadius * dotProgress}`);
 }
 
 function resetHandwritingGeometry() {
-  if (!wordmarkPrepared) return;
-
-  wordmarkText.setAttribute('mask', 'url(#wordmarkWriteMask)');
-  hideIDot();
-
-  handwritingSteps.forEach((step) => {
-    if (step.type === 'stroke') {
-      step.path.style.strokeDashoffset = `${step.length}`;
-    }
-  });
-
-  const firstStroke = handwritingSteps.find((step) => step.type === 'stroke');
-  if (firstStroke) setCursorOnPath(firstStroke.path, firstStroke.length, 0);
-
-  wordmark.classList.remove('is-writing', 'is-complete');
+  if (!handwritingPrepared) return;
+  setHandwritingProgress(0);
 }
 
 function revealIntroCopy(runId) {
@@ -210,70 +112,32 @@ function revealIntroCopy(runId) {
 
 function finishHandwriting(runId) {
   if (runId !== introRunId) return;
-
-  wordmarkText.removeAttribute('mask');
-  showIDot();
-  wordmark.classList.remove('is-writing');
-  wordmark.classList.add('is-complete');
+  setHandwritingProgress(1);
   revealIntroCopy(runId);
 }
 
-function animateDotStep(step, index, runId) {
-  if (runId !== introRunId) return;
-
-  wordmarkCursor.setAttribute('cx', step.x.toFixed(2));
-  wordmarkCursor.setAttribute('cy', step.y.toFixed(2));
-
-  scheduleIntro(() => showIDot(), 54, runId);
-  scheduleIntro(() => animateHandwritingStep(index + 1, runId), 150 + step.pause, runId);
-}
-
-function animateStrokeStep(step, index, runId) {
-  const proportionalDuration = HANDWRITING_TARGET_DURATION * (step.length / totalHandwritingLength);
-  const duration = clamp(proportionalDuration, 72, 410);
+function animateHandwriting(runId) {
   const startedAt = performance.now();
-
-  setCursorOnPath(step.path, step.length, 0);
 
   function tick(now) {
     if (runId !== introRunId) return;
 
-    const linearProgress = clamp((now - startedAt) / duration);
-    const easedProgress = 1 - Math.pow(1 - linearProgress, 2.05);
-    step.path.style.strokeDashoffset = `${step.length * (1 - easedProgress)}`;
-    setCursorOnPath(step.path, step.length, easedProgress);
+    const progress = clamp((now - startedAt) / HANDWRITING_TARGET_DURATION);
+    setHandwritingProgress(progress);
 
-    if (linearProgress < 1) {
+    if (progress < 1) {
       requestAnimationFrame(tick);
       return;
     }
 
-    step.path.style.strokeDashoffset = '0';
-    scheduleIntro(() => animateHandwritingStep(index + 1, runId), step.pause, runId);
+    finishHandwriting(runId);
   }
 
   requestAnimationFrame(tick);
 }
 
-function animateHandwritingStep(index, runId) {
-  if (runId !== introRunId) return;
-
-  if (index >= handwritingSteps.length) {
-    finishHandwriting(runId);
-    return;
-  }
-
-  const step = handwritingSteps[index];
-  if (step.type === 'dot') {
-    animateDotStep(step, index, runId);
-    return;
-  }
-
-  animateStrokeStep(step, index, runId);
-}
-
 function playIntroSequence() {
-  if (!wordmarkPrepared) return;
+  if (!handwritingPrepared) return;
 
   introRunId += 1;
   const runId = introRunId;
@@ -283,39 +147,12 @@ function playIntroSequence() {
   resetHandwritingGeometry();
 
   if (reducedMotion) {
-    handwritingSteps.forEach((step) => {
-      if (step.type === 'stroke') step.path.style.strokeDashoffset = '0';
-    });
-    wordmarkText.removeAttribute('mask');
-    showIDot();
-    wordmark.classList.add('is-complete');
+    setHandwritingProgress(1);
     intro.classList.add('is-copy-one-visible', 'is-copy-two-visible', 'is-cta-visible');
     return;
   }
 
-  scheduleIntro(() => {
-    wordmark.classList.add('is-writing');
-    animateHandwritingStep(0, runId);
-  }, HANDWRITING_START_DELAY, runId);
-}
-
-async function prepareWordmark() {
-  wordmark.classList.remove('is-prepared');
-  hideIDot();
-
-  if (document.fonts?.load) {
-    try {
-      await Promise.race([
-        document.fonts.load('182px "Allura"'),
-        new Promise((resolve) => window.setTimeout(resolve, 1200)),
-      ]);
-    } catch (error) {
-      // Fallback cursive remains usable; preparation must never block the intro.
-    }
-  }
-
-  buildHandwritingGeometry();
-  playIntroSequence();
+  scheduleIntro(() => animateHandwriting(runId), HANDWRITING_START_DELAY, runId);
 }
 
 function setHoldProgress(progress) {

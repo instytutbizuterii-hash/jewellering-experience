@@ -40,7 +40,10 @@ button { font: inherit; }
   min-height: 100svh;
   overflow: hidden;
   place-items: center;
-  padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-left: max(20px, env(safe-area-inset-left));
   background: radial-gradient(circle at 77% 17%, rgba(255,255,255,.72), transparent 27%), linear-gradient(145deg,#f1ebe6 0%,#ebe1da 52%,#e4dad1 100%);
 }
 
@@ -79,7 +82,12 @@ button { font: inherit; }
 .intro-content {
   position: relative;
   z-index: 3;
-  width: min(100%,820px);
+  display: grid;
+  width: 100%;
+  max-width: 820px;
+  min-width: 0;
+  margin-inline: auto;
+  justify-items: center;
   text-align: center;
   transition: opacity .62s ease, filter .62s ease, transform .62s ease;
 }
@@ -88,7 +96,9 @@ button { font: inherit; }
 
 .intro-title {
   position: relative;
-  width: min(96vw,760px);
+  width: 100%;
+  max-width: 700px;
+  min-width: 0;
   margin: 0 auto;
   line-height: 0;
 }
@@ -104,59 +114,29 @@ button { font: inherit; }
 
 .wordmark.is-prepared { opacity: 1; }
 
-.wordmark-text {
+.wordmark-ink,
+.wordmark-outline,
+.wordmark-dot {
   fill: var(--ink);
-  font-family: 'Allura', 'URW Chancery L', cursive;
-  font-size: 182px;
-  font-weight: 400;
-  letter-spacing: 1px;
-  text-rendering: geometricPrecision;
-}
-
-.wordmark-mask {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 43;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .wordmark-mask-stroke {
   fill: none;
   stroke: #fff;
-  stroke-width: 43;
+  stroke-width: 12;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.wordmark-i-dot {
-  fill: var(--ink);
+.wordmark-mask-dot {
+  fill: #fff;
   opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: scale(.28);
-  transition: opacity .11s ease, transform .16s cubic-bezier(.18,.82,.28,1.25);
-  pointer-events: none;
 }
-
-.wordmark-i-dot.is-visible {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.wordmark-cursor {
-  fill: var(--ink);
-  opacity: 0;
-  pointer-events: none;
-  filter: drop-shadow(0 0 6px rgba(18,18,18,.08));
-  transition: opacity .09s linear;
-}
-
-.wordmark.is-writing .wordmark-cursor { opacity: .28; }
-.wordmark.is-complete .wordmark-cursor { opacity: 0; }
 
 .intro-copy {
   display: flex;
+  width: 100%;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   gap: 2px;
@@ -337,8 +317,11 @@ button { font: inherit; }
 .outline-button { margin-top: 48px; padding: 14px 21px; color: var(--ink); font-size: .68rem; font-weight: 500; letter-spacing: .16em; }
 
 @media (min-width: 760px) {
-  .intro { padding-inline: 60px; }
-  .intro-title { width: min(74vw,680px); }
+  .intro {
+    padding-right: max(60px, env(safe-area-inset-right));
+    padding-left: max(60px, env(safe-area-inset-left));
+  }
+  .intro-title { max-width: 680px; }
   .intro-copy { margin-top: 22px; }
   .intro-orbit--one { left: -22vw; top: -24vw; }
   .intro-orbit--two { right: -24vw; bottom: -31vw; }
@@ -359,7 +342,7 @@ button { font: inherit; }
   }
 
   .wordmark-mask-stroke { stroke-dashoffset: 0 !important; }
-  .wordmark-cursor { display: none; }
+  .wordmark-mask-dot { opacity: 1 !important; }
   .intro-copy-line,
   .enter-button { transform: none; }
 }
