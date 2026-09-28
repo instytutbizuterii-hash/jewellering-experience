@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#eee7e1" />
+  <meta name="description" content="Jewellering — interaktywne doświadczenie Instytutu Biżuterii." />
+  <title>Jewellering — Instytut Biżuterii</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&family=Manrope:wght@300;400;500&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+  <section class="intro" id="intro" aria-label="Wprowadzenie do Jewelleringu">
+    <div class="grain" aria-hidden="true"></div>
+    <div class="intro-orbit intro-orbit--one" aria-hidden="true"></div>
+    <div class="intro-orbit intro-orbit--two" aria-hidden="true"></div>
+
+    <div class="intro-content">
+      <p class="eyebrow intro-eyebrow">INSTYTUT BIŻUTERII</p>
+
+      <h1 class="intro-title" aria-label="Jewellering">
+        <span class="handwritten-line" style="--write-delay:.35s;--write-duration:1.65s"><span>Jewellering</span></span>
+      </h1>
+
+      <div class="intro-copy">
+        <span class="handwritten-line intro-copy-line" style="--write-delay:1.55s;--write-duration:1.25s"><span>Biżuteria to nie tylko to, co nosisz.</span></span>
+        <span class="handwritten-line intro-copy-line intro-copy-line--second" style="--write-delay:2.55s;--write-duration:1.35s"><span>To także sposób, w jaki ją wybierasz.</span></span>
+      </div>
+
+      <button class="enter-button" id="enterButton" type="button">
+        <span>ODKRYJ JEWELLERING</span>
+        <span class="enter-button-arrow" aria-hidden="true">↘</span>
+      </button>
+    </div>
+
+    <div class="intro-signature" aria-hidden="true">dotknij, aby wejść</div>
+  </section>
+
+  <main class="experience" id="experience" hidden>
+    <section class="dark-opening">
+      <div class="dark-opening-light" aria-hidden="true"></div>
+      <div class="dark-opening-content">
+        <p class="eyebrow eyebrow--light">JEWELLERING / 01</p>
+        <h2>Nie każda biżuteria<br />działa tak samo.</h2>
+        <p class="dark-opening-note">Przewiń powoli.</p>
+      </div>
+    </section>
+
+    <section class="story" id="story">
+      <div class="story-sticky">
+        <div class="story-halo" id="storyHalo" aria-hidden="true"></div>
+
+        <svg class="bloom" viewBox="0 0 420 620" role="img" aria-label="Animowany line-art rozwijającego się kwiatu">
+          <path id="bloomStem" class="bloom-stem" d="M215 600 C218 510 201 430 218 346 C227 301 248 266 246 218 C245 180 227 146 233 94"></path>
+          <path id="bloomLeafOne" class="bloom-leaf" d="M213 430 C164 405 135 372 133 333 C174 343 204 366 218 402"></path>
+          <path id="bloomLeafTwo" class="bloom-leaf" d="M220 360 C272 337 302 303 305 263 C262 274 233 297 218 332"></path>
+          <g id="bloomFlower" class="bloom-flower">
+            <path d="M234 108 C198 87 186 52 207 28 C230 42 245 68 234 108Z"></path>
+            <path d="M235 109 C266 75 302 69 320 95 C299 116 269 126 235 109Z"></path>
+            <path d="M234 109 C272 117 291 147 279 176 C250 168 230 145 234 109Z"></path>
+            <path d="M233 109 C214 145 184 159 157 145 C170 117 196 101 233 109Z"></path>
+            <path d="M233 108 C195 109 169 88 168 58 C198 55 222 71 233 108Z"></path>
+            <circle cx="234" cy="109" r="16"></circle>
+          </g>
+        </svg>
+
+        <div class="story-copy story-copy--one" id="storyCopyOne">
+          <p class="eyebrow eyebrow--light">PERSPEKTYWA</p>
+          <h3>Biżuteria nie istnieje sama.</h3>
+          <p>Zmienia się razem z osobą, która ją nosi.</p>
+        </div>
+
+        <div class="story-copy story-copy--two" id="storyCopyTwo">
+          <p class="eyebrow eyebrow--light">RELACJA</p>
+          <h3>Proporcja. Rytm. Akcent.</h3>
+          <p>To, co dobrze wygląda w gablocie, nie zawsze musi być tym, co najlepiej opowiada o Tobie.</p>
+        </div>
+
+        <div class="story-copy story-copy--three" id="storyCopyThree">
+          <p class="eyebrow eyebrow--light">JEWELLERING</p>
+          <h3>Nie zaczynamy od produktu.</h3>
+          <p>Zaczynamy od Ciebie.</p>
+        </div>
+
+        <div class="scroll-marker" aria-hidden="true"><span id="scrollMarker"></span></div>
+      </div>
+    </section>
+
+    <section class="light-return">
+      <div class="light-return-inner">
+        <p class="eyebrow">JEWELLERING / 02</p>
+        <p class="light-return-script">To dopiero początek.</p>
+        <h2>Poznajemy sposób, w jaki nosisz biżuterię.</h2>
+        <p class="light-return-copy">Ta część będzie rozwijana razem z właściwą treścią Jewelleringu. Na tym etapie testujemy rytm, przejścia, typografię i zachowanie strony na telefonie.</p>
+        <button class="outline-button" id="restartButton" type="button">WRÓĆ NA POCZĄTEK</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="./src/app.js" defer></script>
+</body>
+</html>
