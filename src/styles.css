@@ -88,7 +88,7 @@ button { font: inherit; }
 
 .intro-title {
   position: relative;
-  width: min(94vw,720px);
+  width: min(96vw,760px);
   margin: 0 auto;
   line-height: 0;
 }
@@ -99,41 +99,60 @@ button { font: inherit; }
   height: auto;
   overflow: visible;
   opacity: 0;
-  transition: opacity .14s ease;
+  transition: opacity .18s ease;
 }
 
 .wordmark.is-prepared { opacity: 1; }
 
-.wordmark-ink,
+.wordmark-text {
+  fill: var(--ink);
+  font-family: 'Allura', 'URW Chancery L', cursive;
+  font-size: 182px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-rendering: geometricPrecision;
+}
+
 .wordmark-mask {
   fill: none;
+  stroke: #fff;
+  stroke-width: 43;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.wordmark-ink {
-  stroke: var(--ink);
-  stroke-width: 9.5;
-}
-
-.wordmark-mask {
+.wordmark-mask-stroke {
+  fill: none;
   stroke: #fff;
-  stroke-width: 30;
+  stroke-width: 43;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.wordmark-mask use {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+.wordmark-i-dot {
+  fill: var(--ink);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(.28);
+  transition: opacity .11s ease, transform .16s cubic-bezier(.18,.82,.28,1.25);
+  pointer-events: none;
+}
+
+.wordmark-i-dot.is-visible {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .wordmark-cursor {
   fill: var(--ink);
   opacity: 0;
   pointer-events: none;
-  filter: drop-shadow(0 0 7px rgba(18,18,18,.08));
+  filter: drop-shadow(0 0 6px rgba(18,18,18,.08));
+  transition: opacity .09s linear;
 }
 
-.wordmark.is-writing .wordmark-cursor { opacity: .34; }
+.wordmark.is-writing .wordmark-cursor { opacity: .28; }
 .wordmark.is-complete .wordmark-cursor { opacity: 0; }
 
 .intro-copy {
@@ -339,7 +358,7 @@ button { font: inherit; }
     transition-duration: .01ms !important;
   }
 
-  .wordmark-mask use { stroke-dashoffset: 0 !important; }
+  .wordmark-mask-stroke { stroke-dashoffset: 0 !important; }
   .wordmark-cursor { display: none; }
   .intro-copy-line,
   .enter-button { transform: none; }
