@@ -1,16 +1,19 @@
-# Jewellering Experience — v0.1.2
+# Jewellering Experience — v0.1.3
 
 Interaktywny, mobile-first prototyp doświadczenia Jewellering.
 
-## Zmiany w v0.1.2
+## v0.1.3 — Real Handwriting
 
-- usunięte zdublowane instrukcje przy wejściu,
-- poszerzony obszar renderowania odręcznego napisu `Jewellering`, aby końcówki liter nie były ucinane,
-- przycisk wejścia działa przez przytrzymanie i pokazuje postęp wypełnieniem,
-- po pełnym przytrzymaniu pojawia się subtelny impuls cząsteczek,
-- przejście nie wyjeżdża już od dołu — cała scena wygasza się do pełnej czerni,
-- kolejna scena pojawia się dopiero z blackoutu,
-- poprawione działanie przycisku `WRÓĆ NA POCZĄTEK`.
+Startowy wordmark `Jewellering` został przebudowany od podstaw. Nie jest już tekstem odsłanianym poziomą maską.
+
+- wordmark jest geometrią SVG,
+- maska porusza się po rzeczywistych trajektoriach liter,
+- długość ruchów jest liczona z SVG,
+- końcówka pisaka porusza się po tej samej ścieżce,
+- copy i CTA pojawiają się dopiero po ukończeniu pisania,
+- zachowane zostały hold CTA, particles i blackout.
+
+Projekt nie wymaga bundlera ani instalacji zależności.
 
 ## Uruchomienie lokalne
 
@@ -18,4 +21,4 @@ Otwórz `index.html` w przeglądarce.
 
 ## GitHub Pages
 
-Pliki powinny znajdować się bezpośrednio w głównym katalogu repozytorium. GitHub Pages może publikować gałąź `main` z katalogu `/ (root)`.
+Pliki z tego folderu powinny znajdować się bezpośrednio w głównym katalogu repozytorium. GitHub Pages może publikować gałąź `main` z `/ (root)`.
