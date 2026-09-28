@@ -16,8 +16,57 @@ const storyCopyThree = document.querySelector('#storyCopyThree');
 const scrollMarker = document.querySelector('#scrollMarker');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const HOLD_DURATION = reducedMotion ? 250 : 1400;
 let entered = false;
 let frame = 0;
+let holdFrame = 0;
+let holdStartedAt = 0;
+let holding = false;
+
+function setHoldProgress(progress) {
+  enterButton.style.setProperty('--hold-progress', `${Math.round(clamp(progress) * 100)}%`);
+}
+
+function cancelHold() {
+  if (!holding || entered) return;
+  holding = false;
+  cancelAnimationFrame(holdFrame);
+  enterButton.classList.remove('is-holding');
+  setHoldProgress(0);
+}
+
+function finishHold() {
+  holding = false;
+  cancelAnimationFrame(holdFrame);
+  setHoldProgress(1);
+  enterButton.classList.remove('is-holding');
+  enterButton.classList.add('is-complete');
+  enterExperience();
+}
+
+function updateHold(now) {
+  if (!holding || entered) return;
+  const progress = (now - holdStartedAt) / HOLD_DURATION;
+  setHoldProgress(progress);
+
+  if (progress >= 1) {
+    finishHold();
+    return;
+  }
+
+  holdFrame = requestAnimationFrame(updateHold);
+}
+
+function startHold(event) {
+  if (entered || holding) return;
+  if (event.type === 'pointerdown' && event.button !== 0) return;
+  event.preventDefault();
+  holding = true;
+  holdStartedAt = performance.now();
+  enterButton.classList.add('is-holding');
+  setHoldProgress(0);
+  holdFrame = requestAnimationFrame(updateHold);
+}
 
 function enterExperience() {
   if (entered) return;
@@ -78,7 +127,16 @@ function onScroll() {
   frame = requestAnimationFrame(updateStory);
 }
 
-enterButton.addEventListener('click', enterExperience);
+enterButton.addEventListener('pointerdown', startHold);
+enterButton.addEventListener('pointerup', cancelHold);
+enterButton.addEventListener('pointercancel', cancelHold);
+enterButton.addEventListener('pointerleave', cancelHold);
+enterButton.addEventListener('keydown', (event) => {
+  if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) startHold(event);
+});
+enterButton.addEventListener('keyup', (event) => {
+  if (event.key === ' ' || event.key === 'Enter') cancelHold();
+});
 restartButton.addEventListener('click', restartExperience);
 window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('resize', onScroll);

@@ -1,4 +1,4 @@
-# Jewellering Experience — v0.1.0
+# Jewellering Experience — v0.1.1
 
 Pierwszy prototyp interaktywnego doświadczenia Jewellering dla Instytutu Biżuterii.
 
@@ -6,10 +6,12 @@ Pierwszy prototyp interaktywnego doświadczenia Jewellering dla Instytutu Biżut
 
 Wersja nie wymaga frameworka ani instalacji zależności. Otwórz `index.html` w przeglądarce albo uruchom dowolny prosty serwer statyczny.
 
-## Zakres v0.1.0
+## Zakres v0.1.1
 
 - mobile-first,
-- wejście z animowanym, odręcznym napisem,
+- wejście z animowanym, odręcznym napisem bez podpisu Instytut Biżuterii,
+- poprawione pole odręcznej typografii, aby końcówki liter nie były ucinane,
+- wejście przez przytrzymanie CTA z animowanym paskiem postępu,
 - przejście z jasnego tła do czerni po kliknięciu CTA,
 - pełnoekranowe sceny,
 - animacja sterowana scrollem,
