@@ -4,14 +4,15 @@
   const STATES = Object.freeze({
     IDLE: 'IDLE',
     SPLASH: 'SPLASH',
-    MERGE: 'MERGE',
-    COVERAGE: 'COVERAGE',
+    FLOW: 'FLOW',
+    SATURATION: 'SATURATION',
     COVERED: 'COVERED',
     DONE: 'DONE',
   });
 
   const clamp01 = (value) => Math.max(0, Math.min(1, value));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const lerp = (a, b, t) => a + (b - a) * t;
 
   function easeOutCubic(value) {
     const x = clamp01(value);
@@ -21,6 +22,17 @@
   function easeInOutCubic(value) {
     const x = clamp01(value);
     return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+
+  function smoothstep(edge0, edge1, value) {
+    if (edge0 === edge1) return value >= edge1 ? 1 : 0;
+    const x = clamp01((value - edge0) / (edge1 - edge0));
+    return x * x * (3 - 2 * x);
+  }
+
+  function normalize(x, y) {
+    const length = Math.hypot(x, y) || 1;
+    return { x: x / length, y: y / length };
   }
 
   function rngFactory(seed) {
@@ -60,8 +72,13 @@
     if (!ink) throw new Error('InkTransition requires an offscreen Canvas 2D buffer.');
 
     const SPLASH_MS = 650;
-    const MERGE_END_MS = 1800;
-    const COVERED_MS = 2720;
+    const SATURATION_START_MS = 1080;
+    const SATURATION_FULL_MS = 2920;
+    const MIN_COVERED_MS = 2280;
+    const WATCHDOG_MS = 4400;
+    const ANALYZE_INTERVAL_MS = 90;
+    const COVERAGE_TARGET = 0.992;
+    const MAX_BRIGHT_ISLAND_RATIO = 0.0045;
     const DPR_CAP = 2;
     const INK = '#0c0c0d';
 
@@ -71,6 +88,7 @@
     let height = 1;
     let dpr = 1;
     let model = null;
+    let tracker = null;
     let startedAt = 0;
     let released = false;
 
@@ -115,6 +133,136 @@
       pathOrganicBlob(context, x, y, shape, radius * sx, radius * sy);
       context.fill();
       context.restore();
+    }
+
+    function createCoverageTracker() {
+      const cellSize = clamp(Math.round(Math.min(width, height) / 30), 12, 18);
+      const cols = Math.max(1, Math.ceil(width / cellSize));
+      const rows = Math.max(1, Math.ceil(height / cellSize));
+      const values = new Float32Array(cols * rows);
+      let lastAnalysisAt = -Infinity;
+      let cached = {
+        coverageRatio: 0,
+        largestBrightIslandRatio: 1,
+        largestBrightCentroid: { x: width / 2, y: height / 2 },
+      };
+
+      function markEllipse(cx, cy, rx, ry, alpha = 1) {
+        const safeRx = Math.max(1, rx * 0.90);
+        const safeRy = Math.max(1, ry * 0.90);
+        const minCol = clamp(Math.floor((cx - safeRx) / cellSize), 0, cols - 1);
+        const maxCol = clamp(Math.ceil((cx + safeRx) / cellSize), 0, cols - 1);
+        const minRow = clamp(Math.floor((cy - safeRy) / cellSize), 0, rows - 1);
+        const maxRow = clamp(Math.ceil((cy + safeRy) / cellSize), 0, rows - 1);
+
+        for (let row = minRow; row <= maxRow; row += 1) {
+          const py = Math.min(height - 0.5, row * cellSize + cellSize * 0.5);
+          const ny = (py - cy) / safeRy;
+          for (let col = minCol; col <= maxCol; col += 1) {
+            const px = Math.min(width - 0.5, col * cellSize + cellSize * 0.5);
+            const nx = (px - cx) / safeRx;
+            const distance = Math.hypot(nx, ny);
+            if (distance >= 1.03) continue;
+
+            const core = 1 - smoothstep(0.62, 1.03, distance);
+            const contribution = clamp01(core * alpha);
+            const cellIndex = row * cols + col;
+            values[cellIndex] = 1 - (1 - values[cellIndex]) * (1 - contribution);
+          }
+        }
+      }
+
+      function analyze(elapsed, force = false) {
+        if (!force && elapsed - lastAnalysisAt < ANALYZE_INTERVAL_MS) return cached;
+        lastAnalysisAt = elapsed;
+
+        const total = values.length;
+        let weightedCoverage = 0;
+        const bright = new Uint8Array(total);
+
+        for (let index = 0; index < total; index += 1) {
+          const value = values[index];
+          weightedCoverage += clamp01((value - 0.14) / 0.72);
+          bright[index] = value < 0.56 ? 1 : 0;
+        }
+
+        let largestCount = 0;
+        let largestSumX = 0;
+        let largestSumY = 0;
+        const visited = new Uint8Array(total);
+        const queue = new Int32Array(total);
+        const directions = [
+          [-1, -1], [0, -1], [1, -1],
+          [-1, 0],            [1, 0],
+          [-1, 1],  [0, 1],  [1, 1],
+        ];
+
+        for (let start = 0; start < total; start += 1) {
+          if (!bright[start] || visited[start]) continue;
+
+          let head = 0;
+          let tail = 0;
+          let count = 0;
+          let sumX = 0;
+          let sumY = 0;
+          queue[tail++] = start;
+          visited[start] = 1;
+
+          while (head < tail) {
+            const current = queue[head++];
+            const row = Math.floor(current / cols);
+            const col = current - row * cols;
+            count += 1;
+            sumX += Math.min(width - 0.5, col * cellSize + cellSize * 0.5);
+            sumY += Math.min(height - 0.5, row * cellSize + cellSize * 0.5);
+
+            directions.forEach(([dx, dy]) => {
+              const nextCol = col + dx;
+              const nextRow = row + dy;
+              if (nextCol < 0 || nextCol >= cols || nextRow < 0 || nextRow >= rows) return;
+              const next = nextRow * cols + nextCol;
+              if (!bright[next] || visited[next]) return;
+              visited[next] = 1;
+              queue[tail++] = next;
+            });
+          }
+
+          if (count > largestCount) {
+            largestCount = count;
+            largestSumX = sumX;
+            largestSumY = sumY;
+          }
+        }
+
+        cached = {
+          coverageRatio: weightedCoverage / total,
+          largestBrightIslandRatio: largestCount / total,
+          largestBrightCentroid: largestCount
+            ? { x: largestSumX / largestCount, y: largestSumY / largestCount }
+            : null,
+        };
+        return cached;
+      }
+
+      return { markEllipse, analyze };
+    }
+
+    function depositOrganicBlob(x, y, radius, shape, sx = 1, sy = 1, alpha = 1) {
+      fillOrganicBlob(ink, x, y, radius, shape, sx, sy, alpha);
+      if (tracker) tracker.markEllipse(x, y, radius * sx, radius * sy, Math.min(1, alpha * 1.02));
+    }
+
+    function depositEllipse(x, y, radiusX, radiusY, rotation = 0, alpha = 1) {
+      ink.save();
+      ink.translate(x, y);
+      ink.rotate(rotation);
+      ink.globalAlpha = alpha;
+      ink.fillStyle = INK;
+      ink.beginPath();
+      ink.ellipse(0, 0, radiusX, radiusY, 0, 0, Math.PI * 2);
+      ink.fill();
+      ink.restore();
+      if (tracker) tracker.markEllipse(x, y, radiusX, radiusY, Math.min(1, alpha));
     }
 
     function configureContexts() {
@@ -192,9 +340,11 @@
         growMs: data.growMs,
         startScale,
         lastScale: 0,
-        isCoverage: Boolean(data.isCoverage),
-        bleedMarks: Array.from({ length: data.isCoverage ? 8 : 11 }, (_, index) => ({
-          trigger: 0.58 + (index / (data.isCoverage ? 8 : 11)) * 0.34 + rng() * 0.035,
+        saturationDelay: rng() * 190,
+        saturationMaxScale: 2.58 + rng() * 0.56,
+        saturationScale: 1,
+        bleedMarks: Array.from({ length: 11 }, (_, index) => ({
+          trigger: 0.58 + (index / 11) * 0.34 + rng() * 0.035,
           angle: rng() * Math.PI * 2,
           size: 0.018 + rng() * 0.035,
           stretch: 0.68 + rng() * 0.72,
@@ -213,12 +363,8 @@
       return mass.startScale + easeOutCubic(progress) * (1 - mass.startScale);
     }
 
-    function growthSpacing(mass) {
-      return clamp(mass.radius * (mass.isCoverage ? 0.018 : 0.030), 1.8, mass.isCoverage ? 5.2 : 3.4);
-    }
-
     function depositMassScale(mass, scale, alpha = 0.985) {
-      fillOrganicBlob(ink, mass.x, mass.y, mass.radius * scale, mass.shape, mass.sx, mass.sy, alpha);
+      depositOrganicBlob(mass.x, mass.y, mass.radius * scale, mass.shape, mass.sx, mass.sy, alpha);
     }
 
     function updateMassGrowth(mass, elapsed) {
@@ -232,7 +378,7 @@
       }
 
       const maxAxis = mass.radius * Math.max(mass.sx, mass.sy);
-      const spacing = growthSpacing(mass);
+      const spacing = clamp(mass.radius * 0.030, 1.8, 3.4);
       let edgeGap = maxAxis * (targetScale - mass.lastScale);
 
       while (edgeGap >= spacing) {
@@ -255,18 +401,32 @@
         const edgeRadius = mass.radius * mass.lastScale;
         const x = mass.x + Math.cos(angle) * edgeRadius * mass.sx * (0.93 + mark.size * 2.2);
         const y = mass.y + Math.sin(angle) * edgeRadius * mass.sy * (0.93 + mark.size * 2.2);
-        const r = Math.max(1.4, mass.radius * mark.size);
-
-        ink.save();
-        ink.translate(x, y);
-        ink.rotate(angle);
-        ink.globalAlpha = mass.isCoverage ? 0.38 : 0.52;
-        ink.fillStyle = INK;
-        ink.beginPath();
-        ink.ellipse(0, 0, r, r * mark.stretch, 0, 0, Math.PI * 2);
-        ink.fill();
-        ink.restore();
+        const radius = Math.max(1.4, mass.radius * mark.size);
+        depositEllipse(x, y, radius, radius * mark.stretch, angle, 0.52);
       });
+    }
+
+    function updateMassSaturation(mass, elapsed) {
+      if (elapsed < SATURATION_START_MS + mass.saturationDelay || mass.lastScale < 0.999) return;
+
+      const local = smoothstep(
+        SATURATION_START_MS + mass.saturationDelay,
+        SATURATION_FULL_MS + mass.saturationDelay * 0.20,
+        elapsed,
+      );
+      const targetScale = 1 + (mass.saturationMaxScale - 1) * local;
+      if (targetScale <= mass.saturationScale) return;
+
+      const maxAxis = mass.radius * Math.max(mass.sx, mass.sy);
+      const spacing = clamp(mass.radius * 0.040, 2.4, 5.0);
+      let edgeGap = maxAxis * (targetScale - mass.saturationScale);
+
+      while (edgeGap >= spacing) {
+        const nextScale = Math.min(targetScale, mass.saturationScale + spacing / maxAxis);
+        depositMassScale(mass, nextScale, 0.965);
+        mass.saturationScale = nextScale;
+        edgeGap = maxAxis * (targetScale - mass.saturationScale);
+      }
     }
 
     function createTongue(rng, projectile, index) {
@@ -328,8 +488,7 @@
       );
       const pulse = 1 + Math.sin(t * Math.PI * 5.1 + tongue.flowPhase) * 0.035;
 
-      fillOrganicBlob(
-        ink,
+      depositOrganicBlob(
         point.x + normalX * lateral,
         point.y + normalY * lateral,
         baseRadius * pulse,
@@ -375,30 +534,144 @@
       }
     }
 
-    function createCoverageMasses(rng) {
-      const maxSide = Math.max(width, height);
-      const templates = [
-        [-0.18, 0.24, 0.43, 1380],
-        [1.17, 0.34, 0.44, 1435],
-        [0.18, -0.18, 0.39, 1490],
-        [0.82, -0.13, 0.38, 1545],
-        [0.10, 1.12, 0.44, 1580],
-        [0.88, 1.10, 0.46, 1630],
-        [0.52, 0.61, 0.32, 1720],
-      ];
+    function createFrontier(rng, projectile, index, branch = 0) {
+      const centerAngle = Math.atan2(projectile.impactY - height * 0.50, projectile.impactX - width * 0.50);
+      const branchOffset = branch === 0 ? 0 : (branch % 2 ? 1 : -1) * (0.78 + rng() * 0.48);
+      const baseAngle = centerAngle + branchOffset + (rng() - 0.5) * 0.62;
+      const startOffset = projectile.radius * (0.12 + rng() * 0.12);
+      const start = {
+        x: projectile.impactX + Math.cos(baseAngle) * startOffset,
+        y: projectile.impactY + Math.sin(baseAngle) * startOffset,
+      };
 
-      return templates.map(([nx, ny, relative, startAt], index) => createMass(rng, {
-        id: `c-${index}`,
-        x: nx * width + (rng() - 0.5) * width * 0.035,
-        y: ny * height + (rng() - 0.5) * height * 0.028,
-        radius: maxSide * relative * (0.94 + rng() * 0.09),
-        sx: 0.94 + rng() * 0.12,
-        sy: 0.96 + rng() * 0.12,
-        startAt: startAt + rng() * 65,
-        growMs: 900 + rng() * 260,
-        startScale: 0.10,
-        isCoverage: true,
-      }));
+      return {
+        id: `f-${index}-${branch}`,
+        x: start.x,
+        y: start.y,
+        baseAngle,
+        baseSpeed: 82 + rng() * 52,
+        baseRadius: projectile.radius * (0.62 + rng() * 0.16),
+        shape: makeBlob(rng, 1, 13 + Math.floor(rng() * 4)),
+        sx: 0.94 + rng() * 0.10,
+        sy: 1.00 + rng() * 0.16,
+        startAt: projectile.impactAt + 390 + rng() * 180 + branch * 90,
+        lastElapsed: null,
+        carryDistance: 0,
+        phase: rng() * Math.PI * 2,
+        started: false,
+      };
+    }
+
+    function depositFrontierSegment(frontier, from, to, radius, saturation) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance <= 0.001) return;
+
+      const spacing = clamp(radius * lerp(0.16, 0.10, saturation), 2.4, 6.0);
+      let remaining = distance;
+      let cursorX = from.x;
+      let cursorY = from.y;
+      let dirX = dx / distance;
+      let dirY = dy / distance;
+      let nextDistance = spacing - frontier.carryDistance;
+
+      while (remaining >= nextDistance) {
+        cursorX += dirX * nextDistance;
+        cursorY += dirY * nextDistance;
+        const pulse = 1 + Math.sin(frontier.phase + frontier.carryDistance * 0.09 + cursorY * 0.012) * 0.045;
+        depositOrganicBlob(
+          cursorX,
+          cursorY,
+          radius * pulse,
+          frontier.shape,
+          frontier.sx,
+          frontier.sy * lerp(1.08, 0.98, saturation),
+          0.972,
+        );
+        remaining -= nextDistance;
+        frontier.carryDistance = 0;
+        nextDistance = spacing;
+      }
+
+      frontier.carryDistance += remaining;
+    }
+
+    function frontierDirection(frontier, elapsed, saturation, metrics) {
+      const wobble = Math.sin(elapsed * 0.00135 + frontier.phase) * lerp(0.30, 0.18, saturation);
+      const base = {
+        x: Math.cos(frontier.baseAngle + wobble),
+        y: Math.sin(frontier.baseAngle + wobble),
+      };
+      const gravityWeight = lerp(0.76, 0.14, saturation);
+      const baseWeight = lerp(0.90, 0.42, saturation);
+      const holeWeight = metrics?.largestBrightCentroid
+        ? lerp(0, 1.28, saturation * saturation)
+        : 0;
+
+      let hole = { x: 0, y: 0 };
+      if (metrics?.largestBrightCentroid) {
+        hole = normalize(
+          metrics.largestBrightCentroid.x - frontier.x,
+          metrics.largestBrightCentroid.y - frontier.y,
+        );
+      }
+
+      const edgeMargin = Math.max(28, frontier.baseRadius * 1.4);
+      let edgeX = 0;
+      let edgeY = 0;
+      if (frontier.x < edgeMargin) edgeX += (edgeMargin - frontier.x) / edgeMargin;
+      if (frontier.x > width - edgeMargin) edgeX -= (frontier.x - (width - edgeMargin)) / edgeMargin;
+      if (frontier.y < edgeMargin) edgeY += (edgeMargin - frontier.y) / edgeMargin;
+      if (frontier.y > height - edgeMargin) edgeY -= (frontier.y - (height - edgeMargin)) / edgeMargin;
+
+      return normalize(
+        base.x * baseWeight + hole.x * holeWeight + edgeX * 0.74,
+        base.y * baseWeight + gravityWeight + hole.y * holeWeight + edgeY * 0.74,
+      );
+    }
+
+    function updateFrontier(frontier, elapsed, metrics) {
+      if (elapsed < frontier.startAt) return;
+
+      if (!frontier.started) {
+        frontier.started = true;
+        frontier.lastElapsed = frontier.startAt;
+        depositOrganicBlob(
+          frontier.x,
+          frontier.y,
+          frontier.baseRadius,
+          frontier.shape,
+          frontier.sx,
+          frontier.sy,
+          0.975,
+        );
+      }
+
+      let remainingMs = Math.max(0, elapsed - frontier.lastElapsed);
+      if (remainingMs <= 0) return;
+      remainingMs = Math.min(remainingMs, 180);
+
+      while (remainingMs > 0) {
+        const stepMs = Math.min(remainingMs, 24);
+        const stepEnd = frontier.lastElapsed + stepMs;
+        const saturation = smoothstep(SATURATION_START_MS, SATURATION_FULL_MS, stepEnd);
+        const rescue = smoothstep(SATURATION_FULL_MS, WATCHDOG_MS - 180, stepEnd);
+        const direction = frontierDirection(frontier, stepEnd, saturation, metrics);
+        const speed = frontier.baseSpeed * (0.88 + saturation * 1.78 + rescue * 1.18);
+        const radius = frontier.baseRadius * (1 + saturation * 1.16 + rescue * 0.52);
+        const from = { x: frontier.x, y: frontier.y };
+        const to = {
+          x: clamp(frontier.x + direction.x * speed * (stepMs / 1000), -radius * 0.45, width + radius * 0.45),
+          y: clamp(frontier.y + direction.y * speed * (stepMs / 1000), -radius * 0.45, height + radius * 0.45),
+        };
+
+        depositFrontierSegment(frontier, from, to, radius, saturation);
+        frontier.x = to.x;
+        frontier.y = to.y;
+        frontier.lastElapsed = stepEnd;
+        remainingMs -= stepMs;
+      }
     }
 
     function createModel(originInput) {
@@ -470,15 +743,23 @@
         return projectile;
       });
 
-      const coverageMasses = createCoverageMasses(rng);
-      const masses = [...impactMasses, ...coverageMasses];
+      const frontiers = [];
+      projectiles.forEach((projectile, index) => {
+        frontiers.push(createFrontier(rng, projectile, index, 0));
+        if ([0, 2, 4, 6, 8, 10].includes(index)) frontiers.push(createFrontier(rng, projectile, index, 1));
+      });
+
       return {
         origin,
         projectiles,
         impactMasses,
-        coverageMasses,
-        masses,
         tongues: tongues.filter(Boolean),
+        frontiers,
+        coverageMetrics: {
+          coverageRatio: 0,
+          largestBrightIslandRatio: 1,
+          largestBrightCentroid: { x: width / 2, y: height / 2 },
+        },
       };
     }
 
@@ -507,15 +788,14 @@
       projectile.satellites.forEach((satellite) => {
         const x = projectile.impactX + Math.cos(satellite.angle) * satellite.distance;
         const y = projectile.impactY + Math.sin(satellite.angle) * satellite.distance;
-        ink.save();
-        ink.translate(x, y);
-        ink.rotate(satellite.angle);
-        ink.globalAlpha = 0.78;
-        ink.fillStyle = INK;
-        ink.beginPath();
-        ink.ellipse(0, 0, satellite.radius, satellite.radius * satellite.stretch, 0, 0, Math.PI * 2);
-        ink.fill();
-        ink.restore();
+        depositEllipse(
+          x,
+          y,
+          satellite.radius,
+          satellite.radius * satellite.stretch,
+          satellite.angle,
+          0.78,
+        );
       });
     }
 
@@ -550,8 +830,15 @@
         if (elapsed >= projectile.impactAt) depositImpact(projectile);
       });
 
-      model.masses.forEach((mass) => updateMassGrowth(mass, elapsed));
+      model.impactMasses.forEach((mass) => {
+        updateMassGrowth(mass, elapsed);
+        updateMassSaturation(mass, elapsed);
+      });
       model.tongues.forEach((tongue) => updateTongue(tongue, elapsed));
+
+      model.coverageMetrics = tracker.analyze(elapsed);
+      model.frontiers.forEach((frontier) => updateFrontier(frontier, elapsed, model.coverageMetrics));
+      model.coverageMetrics = tracker.analyze(elapsed);
     }
 
     function drawTransient(elapsed) {
@@ -577,28 +864,45 @@
       canvas.classList.toggle('is-active', visible);
     }
 
-    function finishCovered() {
+    function isGeometryCovered(metrics) {
+      return metrics
+        && metrics.coverageRatio >= COVERAGE_TARGET
+        && metrics.largestBrightIslandRatio <= MAX_BRIGHT_ISLAND_RATIO;
+    }
+
+    function finishCovered(elapsed, reason) {
       cancelAnimationFrame(frame);
       frame = 0;
-      render(COVERED_MS - 1);
+      render(elapsed);
       drawCoveredFrame();
       state = STATES.COVERED;
+      canvas.dataset.inkCompletion = reason;
+      canvas.dataset.inkCoverage = model?.coverageMetrics
+        ? model.coverageMetrics.coverageRatio.toFixed(4)
+        : '';
+      canvas.dataset.inkLargestIsland = model?.coverageMetrics
+        ? model.coverageMetrics.largestBrightIslandRatio.toFixed(4)
+        : '';
       onCovered();
     }
 
     function tick(now) {
-      if (![STATES.SPLASH, STATES.MERGE, STATES.COVERAGE].includes(state)) return;
+      if (![STATES.SPLASH, STATES.FLOW, STATES.SATURATION].includes(state)) return;
 
       const elapsed = now - startedAt;
-
       if (elapsed < SPLASH_MS) state = STATES.SPLASH;
-      else if (elapsed < MERGE_END_MS) state = STATES.MERGE;
-      else state = STATES.COVERAGE;
+      else if (elapsed < SATURATION_START_MS) state = STATES.FLOW;
+      else state = STATES.SATURATION;
 
       render(elapsed);
 
-      if (elapsed >= COVERED_MS) {
-        finishCovered();
+      if (elapsed >= MIN_COVERED_MS && isGeometryCovered(model.coverageMetrics)) {
+        finishCovered(elapsed, 'geometry');
+        return;
+      }
+
+      if (elapsed >= WATCHDOG_MS) {
+        finishCovered(elapsed, 'watchdog');
         return;
       }
 
@@ -612,13 +916,18 @@
       freezeCanvasSize();
       clearBuffer();
       clearDisplay();
+      tracker = createCoverageTracker();
       model = createModel(origin);
       released = false;
+      canvas.removeAttribute('data-ink-completion');
+      canvas.removeAttribute('data-ink-coverage');
+      canvas.removeAttribute('data-ink-largest-island');
       setCanvasVisible(true);
 
       if (reducedMotion) {
         state = STATES.COVERED;
         drawCoveredFrame();
+        canvas.dataset.inkCompletion = 'reduced-motion';
         onCovered();
         return true;
       }
@@ -640,6 +949,7 @@
         unfreezeCanvasSize();
         clearBuffer();
         clearDisplay();
+        tracker = null;
         onDone();
       };
 
@@ -667,7 +977,11 @@
       startedAt = 0;
       state = STATES.IDLE;
       model = null;
+      tracker = null;
       canvas.classList.remove('is-releasing', 'is-active');
+      canvas.removeAttribute('data-ink-completion');
+      canvas.removeAttribute('data-ink-coverage');
+      canvas.removeAttribute('data-ink-largest-island');
       unfreezeCanvasSize();
       resizeCanvas(true);
       clearBuffer();
@@ -683,6 +997,7 @@
       window.removeEventListener('resize', onResize);
       clearBuffer();
       clearDisplay();
+      tracker = null;
     }
 
     window.addEventListener('resize', onResize, { passive: true });
