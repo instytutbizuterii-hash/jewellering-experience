@@ -5,7 +5,7 @@ const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
 const restartButton = document.querySelector('#restartButton');
 const blackout = document.querySelector('#blackout');
-const completionParticles = document.querySelector('#completionParticles');
+const inkCanvas = document.querySelector('#inkTransition');
 
 const wordmark = document.querySelector('#wordmark');
 const wordmarkStrokes = Array.from(document.querySelectorAll('.wordmark-stroke'));
@@ -24,18 +24,12 @@ const scrollMarker = document.querySelector('#scrollMarker');
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const HOLD_DURATION = reducedMotion ? 250 : 1400;
-const PARTICLE_DELAY = reducedMotion ? 0 : 110;
-const BLACKOUT_DURATION = reducedMotion ? 0 : 780;
-const REVEAL_DELAY = reducedMotion ? 0 : 170;
 const HANDWRITING_TARGET_DURATION = 3400;
 const HANDWRITING_START_DELAY = 340;
+const RESTART_BLACKOUT_DURATION = reducedMotion ? 0 : 500;
 
 let entered = false;
 let scrollFrame = 0;
-let holdFrame = 0;
-let holdStartedAt = 0;
-let holding = false;
 let introRunId = 0;
 let introTimers = [];
 let bloomStemLength = 0;
@@ -163,121 +157,45 @@ function playIntroSequence() {
   scheduleIntro(() => animateHandwriting(runId), HANDWRITING_START_DELAY, runId);
 }
 
-function setHoldProgress(progress) {
-  enterButton.style.setProperty('--hold-progress', `${Math.round(clamp(progress) * 100)}%`);
+function prepareForInkTransition() {
+  clearIntroTimers();
+  introRunId += 1;
+  document.body.classList.add('is-transitioning');
 }
 
-function resetHold() {
-  holding = false;
-  cancelAnimationFrame(holdFrame);
-  enterButton.classList.remove('is-holding', 'is-complete');
-  setHoldProgress(0);
-}
-
-function cancelHold() {
-  if (!holding || entered) return;
-  holding = false;
-  cancelAnimationFrame(holdFrame);
-  enterButton.classList.remove('is-holding');
-  setHoldProgress(0);
-}
-
-function createCompletionParticles() {
-  if (reducedMotion) return;
-
-  completionParticles.replaceChildren();
-  const rect = enterButton.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-  const particleCount = 16;
-
-  for (let index = 0; index < particleCount; index += 1) {
-    const particle = document.createElement('span');
-    const angle = (Math.PI * 2 * index) / particleCount;
-    const distance = 22 + (index % 4) * 9;
-    const offsetX = Math.cos(angle) * distance;
-    const offsetY = Math.sin(angle) * distance * 0.72;
-
-    particle.style.setProperty('--x', `${centerX}px`);
-    particle.style.setProperty('--y', `${centerY}px`);
-    particle.style.setProperty('--dx', `${offsetX.toFixed(1)}px`);
-    particle.style.setProperty('--dy', `${offsetY.toFixed(1)}px`);
-    particle.style.setProperty('--size', `${2 + (index % 3)}px`);
-    particle.style.setProperty('--delay', `${(index % 4) * 18}ms`);
-    completionParticles.appendChild(particle);
-  }
-
-  window.setTimeout(() => completionParticles.replaceChildren(), 900);
-}
-
-function prepareBlackoutOrigin() {
-  const rect = enterButton.getBoundingClientRect();
-  const x = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
-  const y = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
-  blackout.style.setProperty('--blackout-x', `${x.toFixed(2)}%`);
-  blackout.style.setProperty('--blackout-y', `${y.toFixed(2)}%`);
-}
-
-function finishHold() {
-  holding = false;
-  cancelAnimationFrame(holdFrame);
-  setHoldProgress(1);
-  enterButton.classList.remove('is-holding');
-  enterButton.classList.add('is-complete');
-  createCompletionParticles();
-  prepareBlackoutOrigin();
-  window.setTimeout(enterExperience, PARTICLE_DELAY);
-}
-
-function updateHold(now) {
-  if (!holding || entered) return;
-
-  const progress = (now - holdStartedAt) / HOLD_DURATION;
-  setHoldProgress(progress);
-
-  if (progress >= 1) {
-    finishHold();
-    return;
-  }
-
-  holdFrame = requestAnimationFrame(updateHold);
-}
-
-function startHold(event) {
-  if (entered || holding || !intro.classList.contains('is-cta-visible')) return;
-  if (event.type === 'pointerdown' && event.button !== 0) return;
-
-  event.preventDefault();
-  holding = true;
-  holdStartedAt = performance.now();
-  enterButton.classList.add('is-holding');
-  setHoldProgress(0);
-  holdFrame = requestAnimationFrame(updateHold);
-}
-
-function enterExperience() {
+function enterExperienceFromInk() {
   if (entered) return;
 
   entered = true;
-  clearIntroTimers();
-  introRunId += 1;
-  intro.classList.add('is-blackout');
-  blackout.classList.add('is-active');
+  experience.hidden = false;
+  experience.classList.remove('is-revealed');
+  intro.hidden = true;
+  document.body.classList.add('experience-started');
+  window.scrollTo(0, 0);
+  requestAnimationFrame(updateStory);
 
-  window.setTimeout(() => {
-    experience.hidden = false;
-    experience.classList.remove('is-revealed');
-    intro.hidden = true;
-    document.body.classList.add('experience-started');
-    window.scrollTo(0, 0);
-    requestAnimationFrame(updateStory);
-
-    window.setTimeout(() => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       experience.classList.add('is-revealed');
-      blackout.classList.remove('is-active');
-    }, REVEAL_DELAY);
-  }, BLACKOUT_DURATION);
+      inkTransition.release();
+    });
+  });
 }
+
+function finishInkTransition() {
+  document.body.classList.remove('is-transitioning');
+}
+
+const inkTransition = window.createInkTransition({
+  canvas: inkCanvas,
+  trigger: enterButton,
+  reducedMotion,
+  seed: 1707,
+  canStart: () => !entered && intro.classList.contains('is-cta-visible'),
+  onCommit: prepareForInkTransition,
+  onCovered: enterExperienceFromInk,
+  onDone: finishInkTransition,
+});
 
 function restartExperience() {
   blackout.classList.add('is-active');
@@ -287,16 +205,15 @@ function restartExperience() {
     experience.classList.remove('is-revealed');
     experience.hidden = true;
     intro.hidden = false;
-    intro.classList.remove('is-blackout');
-    document.body.classList.remove('experience-started');
+    document.body.classList.remove('experience-started', 'is-transitioning');
     entered = false;
-    resetHold();
+    inkTransition.reset();
     playIntroSequence();
 
     requestAnimationFrame(() => {
       blackout.classList.remove('is-active');
     });
-  }, reducedMotion ? 0 : 500);
+  }, RESTART_BLACKOUT_DURATION);
 }
 
 function updateStory() {
@@ -338,16 +255,6 @@ function onScroll() {
   scrollFrame = requestAnimationFrame(updateStory);
 }
 
-enterButton.addEventListener('pointerdown', startHold);
-enterButton.addEventListener('pointerup', cancelHold);
-enterButton.addEventListener('pointercancel', cancelHold);
-enterButton.addEventListener('pointerleave', cancelHold);
-enterButton.addEventListener('keydown', (event) => {
-  if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) startHold(event);
-});
-enterButton.addEventListener('keyup', (event) => {
-  if (event.key === ' ' || event.key === 'Enter') cancelHold();
-});
 restartButton.addEventListener('click', restartExperience);
 window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('resize', onScroll);

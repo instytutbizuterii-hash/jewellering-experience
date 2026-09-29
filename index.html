@@ -79,13 +79,12 @@
       </div>
 
       <button class="enter-button hold-button" id="enterButton" type="button" aria-label="Przytrzymaj, aby odkryć Biżufitting">
-        <span class="hold-button-progress" aria-hidden="true"></span>
         <span class="hold-button-label">PRZYTRZYMAJ, ABY ODKRYĆ</span>
       </button>
     </div>
   </section>
 
-  <div class="completion-particles" id="completionParticles" aria-hidden="true"></div>
+  <canvas class="ink-transition" id="inkTransition" aria-hidden="true"></canvas>
   <div class="blackout" id="blackout" aria-hidden="true"></div>
 
   <main class="experience" id="experience" hidden>
@@ -149,6 +148,7 @@
     </section>
   </main>
 
+  <script src="./src/ink-transition.js" defer></script>
   <script src="./src/app.js" defer></script>
 </body>
 </html>
