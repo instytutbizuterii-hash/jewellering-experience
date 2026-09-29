@@ -249,11 +249,6 @@ button { font: inherit; }
   border-color: rgba(18,18,18,.19);
 }
 
-.enter-button.is-completing {
-  animation: hold-complete-pulse .15s ease-out 1;
-}
-
-.enter-button.is-completing .hold-progress path,
 .enter-button.is-committed .hold-progress path {
   stroke-width: 2.25;
 }
@@ -268,37 +263,55 @@ button { font: inherit; }
   opacity: 1;
 }
 
-@keyframes hold-complete-pulse {
-  50% {
-    transform: translateY(0) scale(.972);
-  }
-}
-
-/* INK TRANSITION */
-.ink-transition {
+/* NARRATIVE INK MATTE */
+.ink-matte {
   position: fixed;
   z-index: 70;
-  top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  object-fit: fill;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  transform: translate(-50%,-50%);
+  transform-origin: center;
+  background: #fff;
+  mix-blend-mode: multiply;
 }
 
-.ink-transition.is-active {
+.ink-matte.is-active {
   opacity: 1;
   visibility: visible;
 }
 
-
-.ink-transition.is-releasing {
+.matte-fallback {
+  --matte-fallback-ms: 920ms;
+  position: fixed;
+  z-index: 69;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  border-radius: 50%;
+  background: var(--black);
   opacity: 0;
-  transition: opacity .46s cubic-bezier(.2,.72,.25,1);
+  pointer-events: none;
+  transform: translate(-50%,-50%) scale(.015);
+  transform-origin: center;
 }
 
-/* Restart uses a simple neutral blackout. The entry transition is owned by Canvas ink. */
+.matte-fallback.is-active {
+  opacity: 1;
+  animation: matte-fallback-expand var(--matte-fallback-ms) cubic-bezier(.55,.02,.22,1) forwards;
+}
+
+@keyframes matte-fallback-expand {
+  to { transform: translate(-50%,-50%) scale(1); }
+}
+
+/* Restart uses a simple neutral blackout. Entry is owned by the matte transition. */
 .blackout {
   position: fixed;
   z-index: 80;
@@ -314,18 +327,23 @@ button { font: inherit; }
 /* EXPERIENCE */
 .experience { background: var(--black); }
 .dark-opening { position: relative; display: grid; min-height: 100svh; overflow: hidden; place-items: center; padding: 32px 24px; color: var(--white); background: var(--black); }
-.dark-opening-light { position: absolute; top: -15%; left: 50%; width: min(110vw,980px); aspect-ratio: 1; border-radius: 50%; transform: translateX(-50%) scale(.94); background: radial-gradient(circle,rgba(223,203,186,.17) 0%,rgba(223,203,186,.045) 34%,transparent 70%); opacity: 0; transition: opacity 1.1s ease, transform 1.45s cubic-bezier(.2,.72,.25,1); }
-.dark-opening-content { position: relative; z-index: 2; width: min(100%,900px); text-align: center; opacity: 0; transform: translateY(14px); transition: opacity .9s .18s ease, transform 1.05s .18s cubic-bezier(.2,.72,.25,1); }
-.experience.is-revealed .dark-opening-light { opacity: 1; transform: translateX(-50%) scale(1); animation: breathe 6s 1.1s ease-in-out infinite alternate; }
-.experience.is-revealed .dark-opening-content { opacity: 1; transform: translateY(0); }
+.dark-opening-light { position: absolute; top: -15%; left: 50%; width: min(110vw,980px); aspect-ratio: 1; border-radius: 50%; transform: translateX(-50%) scale(.94); background: radial-gradient(circle,rgba(223,203,186,.15) 0%,rgba(223,203,186,.04) 34%,transparent 70%); opacity: 0; transition: opacity 1.35s ease, transform 1.7s cubic-bezier(.2,.72,.25,1); }
+.dark-opening-content { position: relative; z-index: 2; width: min(100%,900px); text-align: center; }
+.dark-opening-content .eyebrow,
+.dark-opening h2,
+.dark-opening-note { opacity: 0; transform: translateY(12px); }
+.dark-opening-content .eyebrow { transition: opacity .7s ease, transform .85s cubic-bezier(.2,.72,.25,1); }
+.dark-opening h2 { margin: 18px 0 0; font-family: 'Playfair Display',serif; font-size: clamp(3rem,12vw,7.8rem); font-weight: 500; line-height: .96; letter-spacing: -.045em; transition: opacity .95s ease, transform 1.1s cubic-bezier(.2,.72,.25,1); }
+.dark-opening-note { margin: 17vh 0 0; font-family: 'Caveat',cursive; font-size: 1.35rem; color: rgba(245,241,237,.54); transition: opacity .9s ease, transform 1.05s cubic-bezier(.2,.72,.25,1); }
+.experience.is-opening-eyebrow-visible .dark-opening-content .eyebrow { opacity: 1; transform: translateY(0); }
+.experience.is-opening-copy-visible .dark-opening h2 { opacity: 1; transform: translateY(0); }
+.experience.is-opening-note-visible .dark-opening-note { opacity: 1; transform: translateY(0); }
+.experience.is-opening-halo-visible .dark-opening-light { opacity: .9; transform: translateX(-50%) scale(1); animation: breathe 6s 1.2s ease-in-out infinite alternate; }
 
 @keyframes breathe {
-  from { transform: translateX(-50%) scale(.97); opacity: .72; }
-  to { transform: translateX(-50%) scale(1.1); opacity: 1; }
+  from { transform: translateX(-50%) scale(.98); opacity: .66; }
+  to { transform: translateX(-50%) scale(1.08); opacity: .9; }
 }
-
-.dark-opening h2 { margin: 18px 0 0; font-family: 'Playfair Display',serif; font-size: clamp(3rem,12vw,7.8rem); font-weight: 500; line-height: .96; letter-spacing: -.045em; }
-.dark-opening-note { margin: 17vh 0 0; font-family: 'Caveat',cursive; font-size: 1.35rem; color: rgba(245,241,237,.54); }
 
 .story { position: relative; height: 340svh; background: var(--black); color: var(--white); }
 .story-sticky { position: sticky; top: 0; display: grid; min-height: 100svh; overflow: hidden; place-items: center; }
@@ -363,7 +381,7 @@ button { font: inherit; }
 }
 
 @media (hover: hover) {
-  .intro.is-cta-visible .enter-button:hover:not(.is-holding):not(.is-completing):not(.is-committed) {
+  .intro.is-cta-visible .enter-button:hover:not(.is-holding):not(.is-committed) {
     transform: translateY(-2px) scale(1);
   }
   .outline-button:hover { background: var(--ink); color: var(--paper); }

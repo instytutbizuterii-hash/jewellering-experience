@@ -5,7 +5,8 @@ const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
 const restartButton = document.querySelector('#restartButton');
 const blackout = document.querySelector('#blackout');
-const inkCanvas = document.querySelector('#inkTransition');
+const matteVideo = document.querySelector('#inkMatte');
+const matteFallback = document.querySelector('#matteFallback');
 
 const wordmark = document.querySelector('#wordmark');
 const wordmarkStrokes = Array.from(document.querySelectorAll('.wordmark-stroke'));
@@ -36,6 +37,7 @@ let bloomStemLength = 0;
 let handwritingPrepared = false;
 let handwritingStrokeData = [];
 let handwritingMarkData = [];
+let openingTimers = [];
 
 bloomStemLength = Math.max(bloomStem.getTotalLength(), 1);
 
@@ -157,41 +159,68 @@ function playIntroSequence() {
   scheduleIntro(() => animateHandwriting(runId), HANDWRITING_START_DELAY, runId);
 }
 
-function prepareForInkTransition() {
+function clearOpeningTimers() {
+  openingTimers.forEach(window.clearTimeout);
+  openingTimers = [];
+}
+
+function scheduleOpening(callback, delay) {
+  const timer = window.setTimeout(callback, reducedMotion ? 0 : delay);
+  openingTimers.push(timer);
+}
+
+function resetOpeningScene() {
+  clearOpeningTimers();
+  experience.classList.remove(
+    'is-opening-eyebrow-visible',
+    'is-opening-copy-visible',
+    'is-opening-note-visible',
+    'is-opening-halo-visible',
+  );
+}
+
+function prepareForNarrativeTransition() {
   clearIntroTimers();
+  clearOpeningTimers();
   introRunId += 1;
   document.body.classList.add('is-transitioning');
 }
 
-function enterExperienceFromInk() {
+function mountHistoryUnderMatte() {
   if (entered) return;
 
   entered = true;
+  resetOpeningScene();
   experience.hidden = false;
-  experience.classList.remove('is-revealed');
   intro.hidden = true;
   document.body.classList.add('experience-started');
   window.scrollTo(0, 0);
+  try {
+    experience.focus({ preventScroll: true });
+  } catch (_) {
+    experience.focus();
+  }
   requestAnimationFrame(updateStory);
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      experience.classList.add('is-revealed');
-      inkTransition.release();
-    });
-  });
 }
 
-function finishInkTransition() {
+function revealHistoryOpening() {
+  if (!entered) mountHistoryUnderMatte();
+
   document.body.classList.remove('is-transitioning');
+
+  scheduleOpening(() => experience.classList.add('is-opening-eyebrow-visible'), 220);
+  scheduleOpening(() => experience.classList.add('is-opening-copy-visible'), 540);
+  scheduleOpening(() => experience.classList.add('is-opening-note-visible'), 980);
+  scheduleOpening(() => experience.classList.add('is-opening-halo-visible'), 1220);
 }
 
-const inkTransition = window.createInkTransition({
-  canvas: inkCanvas,
+const matteTransition = window.createMatteTransition({
+  video: matteVideo,
+  fallback: matteFallback,
   reducedMotion,
-  seed: 1808,
-  onCovered: enterExperienceFromInk,
-  onDone: finishInkTransition,
+  nearBlackAt: 1.40,
+  onNearBlack: mountHistoryUnderMatte,
+  onDone: revealHistoryOpening,
 });
 
 const holdCTA = window.createHoldCTA({
@@ -199,8 +228,8 @@ const holdCTA = window.createHoldCTA({
   reducedMotion,
   canStart: () => !entered && intro.classList.contains('is-cta-visible'),
   onCommit: (origin) => {
-    prepareForInkTransition();
-    inkTransition.start(origin);
+    prepareForNarrativeTransition();
+    matteTransition.start(origin);
   },
 });
 
@@ -209,12 +238,12 @@ function restartExperience() {
 
   window.setTimeout(() => {
     window.scrollTo(0, 0);
-    experience.classList.remove('is-revealed');
+    resetOpeningScene();
     experience.hidden = true;
     intro.hidden = false;
     document.body.classList.remove('experience-started', 'is-transitioning');
     entered = false;
-    inkTransition.reset();
+    matteTransition.reset();
     holdCTA.reset();
     playIntroSequence();
 

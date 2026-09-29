@@ -4,7 +4,6 @@
   const STATES = Object.freeze({
     IDLE: 'IDLE',
     HOLDING: 'HOLDING',
-    COMPLETING: 'COMPLETING',
     COMMITTED: 'COMMITTED',
   });
 
@@ -14,8 +13,7 @@
     const {
       trigger,
       reducedMotion = false,
-      holdMs = reducedMotion ? 420 : 1350,
-      completionMs = reducedMotion ? 0 : 150,
+      holdMs = reducedMotion ? 420 : 1280,
       canStart = () => true,
       onCommit = () => {},
       onCancel = () => {},
@@ -27,7 +25,6 @@
 
     let state = STATES.IDLE;
     let frame = 0;
-    let completionTimer = 0;
     let holdStartedAt = 0;
     let pointerId = null;
     let keyboardKey = null;
@@ -82,20 +79,10 @@
       releaseCapturedPointer();
       state = STATES.IDLE;
       setProgress(0);
-      trigger.classList.remove('is-completing');
       onCancel();
     }
 
     function commit() {
-      if (state !== STATES.COMPLETING) return;
-
-      state = STATES.COMMITTED;
-      trigger.classList.remove('is-completing');
-      setCommittedState(true);
-      onCommit(getOrigin());
-    }
-
-    function completeHold() {
       if (state !== STATES.HOLDING) return;
 
       cancelAnimationFrame(frame);
@@ -103,18 +90,11 @@
       holdStartedAt = 0;
       keyboardKey = null;
       releaseCapturedPointer();
-      state = STATES.COMPLETING;
+      state = STATES.COMMITTED;
       setProgress(1);
       trigger.classList.remove('is-holding');
-      trigger.classList.add('is-completing');
-      trigger.setAttribute('aria-disabled', 'true');
-
-      if (completionMs <= 0) {
-        commit();
-        return;
-      }
-
-      completionTimer = window.setTimeout(commit, completionMs);
+      setCommittedState(true);
+      onCommit(getOrigin());
     }
 
     function tick(now) {
@@ -124,7 +104,7 @@
       setProgress(progress);
 
       if (progress >= 1) {
-        completeHold();
+        commit();
         return;
       }
 
@@ -181,13 +161,11 @@
     function reset() {
       cancelAnimationFrame(frame);
       frame = 0;
-      window.clearTimeout(completionTimer);
-      completionTimer = 0;
       holdStartedAt = 0;
       keyboardKey = null;
       releaseCapturedPointer();
       state = STATES.IDLE;
-      trigger.classList.remove('is-holding', 'is-completing', 'is-committed');
+      trigger.classList.remove('is-holding', 'is-committed');
       trigger.setAttribute('aria-disabled', 'false');
       setProgress(0);
     }

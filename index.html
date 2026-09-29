@@ -90,16 +90,25 @@
     </div>
   </section>
 
-  <canvas class="ink-transition" id="inkTransition" aria-hidden="true"></canvas>
+  <video
+    class="ink-matte"
+    id="inkMatte"
+    src="./assets/ink-matte.mp4"
+    muted
+    playsinline
+    preload="auto"
+    aria-hidden="true"
+  ></video>
+  <div class="matte-fallback" id="matteFallback" aria-hidden="true"></div>
   <div class="blackout" id="blackout" aria-hidden="true"></div>
 
-  <main class="experience" id="experience" hidden>
+  <main class="experience" id="experience" tabindex="-1" hidden>
     <section class="dark-opening">
       <div class="dark-opening-light" aria-hidden="true"></div>
       <div class="dark-opening-content">
-        <p class="eyebrow eyebrow--light">BIŻUFITTING / 01</p>
-        <h2>Nie każda biżuteria<br />działa tak samo.</h2>
-        <p class="dark-opening-note">Przewiń powoli.</p>
+        <p class="eyebrow eyebrow--light">HISTORIA / 01</p>
+        <h2>Każdy sposób noszenia<br />ma swoją historię.</h2>
+        <p class="dark-opening-note">Przewiń, aby ją odkryć.</p>
       </div>
     </section>
 
@@ -155,7 +164,7 @@
   </main>
 
   <script src="./src/hold-cta.js" defer></script>
-  <script src="./src/ink-transition.js" defer></script>
+  <script src="./src/matte-transition.js" defer></script>
   <script src="./src/app.js" defer></script>
 </body>
 </html>
