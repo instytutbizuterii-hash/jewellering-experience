@@ -188,13 +188,20 @@ function finishInkTransition() {
 
 const inkTransition = window.createInkTransition({
   canvas: inkCanvas,
-  trigger: enterButton,
   reducedMotion,
-  seed: 1707,
-  canStart: () => !entered && intro.classList.contains('is-cta-visible'),
-  onCommit: prepareForInkTransition,
+  seed: 1808,
   onCovered: enterExperienceFromInk,
   onDone: finishInkTransition,
+});
+
+const holdCTA = window.createHoldCTA({
+  trigger: enterButton,
+  reducedMotion,
+  canStart: () => !entered && intro.classList.contains('is-cta-visible'),
+  onCommit: (origin) => {
+    prepareForInkTransition();
+    inkTransition.start(origin);
+  },
 });
 
 function restartExperience() {
@@ -208,6 +215,7 @@ function restartExperience() {
     document.body.classList.remove('experience-started', 'is-transitioning');
     entered = false;
     inkTransition.reset();
+    holdCTA.reset();
     playIntroSequence();
 
     requestAnimationFrame(() => {

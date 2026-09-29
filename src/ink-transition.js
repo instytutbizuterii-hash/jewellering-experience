@@ -3,11 +3,9 @@
 
   const STATES = Object.freeze({
     IDLE: 'IDLE',
-    HOLDING: 'HOLDING',
-    COMMITTED: 'COMMITTED',
     SPLASH: 'SPLASH',
     BLEED: 'BLEED',
-    FLOOD: 'FLOOD',
+    COVERAGE: 'COVERAGE',
     COVERED: 'COVERED',
     DONE: 'DONE',
   });
@@ -24,13 +22,6 @@
     return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   }
 
-  function easeOutBack(value) {
-    const x = clamp01(value);
-    const c1 = 1.70158;
-    const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
-  }
-
   function rngFactory(seed) {
     let state = seed >>> 0 || 1;
     return () => {
@@ -44,29 +35,26 @@
   function createInkTransition(options) {
     const {
       canvas,
-      trigger,
       reducedMotion = false,
-      seed = 1707,
-      canStart = () => true,
-      onCommit = () => {},
+      seed = 1808,
       onCovered = () => {},
       onDone = () => {},
     } = options;
 
-    if (!canvas || !trigger) {
-      throw new Error('InkTransition requires canvas and trigger elements.');
-    }
+    if (!canvas) throw new Error('InkTransition requires a canvas element.');
 
-    const context = canvas.getContext('2d', { alpha: true });
-    if (!context) {
-      throw new Error('InkTransition requires Canvas 2D support.');
-    }
+    const display = canvas.getContext('2d', { alpha: true });
+    if (!display) throw new Error('InkTransition requires Canvas 2D support.');
 
-    const HOLD_MS = reducedMotion ? 400 : 1350;
-    const SPLASH_MS = 440;
-    const BLEED_MS = 720;
-    const FLOOD_MS = 1040;
-    const TOTAL_MS = SPLASH_MS + BLEED_MS + FLOOD_MS;
+    const buffer = document.createElement('canvas');
+    const ink = buffer.getContext('2d', { alpha: true });
+    if (!ink) throw new Error('InkTransition requires an offscreen Canvas 2D buffer.');
+
+    const SPLASH_MS = 650;
+    const BLEED_END_MS = 1450;
+    const COVERED_MS = 2700;
+    const BLEED_STEP_MS = 58;
+    const COVERAGE_STEP_MS = 66;
     const DPR_CAP = 2;
     const INK = '#0c0c0d';
 
@@ -76,117 +64,25 @@
     let height = 1;
     let dpr = 1;
     let model = null;
-    let holdStartedAt = 0;
-    let transitionStartedAt = 0;
-    let pointerId = null;
-    let keyboardKey = null;
+    let startedAt = 0;
+    let lastFrameAt = 0;
     let released = false;
 
-    function makeBlob(rng, radius, lobes = 13) {
+    function makeBlob(rng, radius, lobes = 15) {
       const points = [];
       const phase = rng() * Math.PI * 2;
 
       for (let index = 0; index < lobes; index += 1) {
         const angle = phase + (index / lobes) * Math.PI * 2;
-        const jitter = 0.72 + rng() * 0.5;
+        const wave = Math.sin(index * 1.73 + phase) * 0.08;
+        const jitter = 0.72 + rng() * 0.42 + wave;
         points.push({ angle, radius: radius * jitter });
       }
 
       return points;
     }
 
-    function createModel(modelSeed) {
-      const rng = rngFactory(modelSeed);
-      const rect = trigger.getBoundingClientRect();
-      const origin = {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-
-      const farthest = Math.max(
-        Math.hypot(origin.x, origin.y),
-        Math.hypot(width - origin.x, origin.y),
-        Math.hypot(origin.x, height - origin.y),
-        Math.hypot(width - origin.x, height - origin.y)
-      );
-
-      const splats = Array.from({ length: 9 }, (_, index) => {
-        const upperBias = index < 3;
-        const angle = upperBias
-          ? -Math.PI * 0.82 + rng() * Math.PI * 0.64
-          : rng() * Math.PI * 2;
-        const distance = 44 + rng() * Math.min(width, height) * 0.35;
-        const radius = 25 + rng() * 68;
-        const drip = index < 5 || rng() > 0.43;
-
-        return {
-          x: origin.x + Math.cos(angle) * distance,
-          y: origin.y + Math.sin(angle) * distance,
-          radius,
-          delay: index * 24 + rng() * 76,
-          points: makeBlob(rng, radius, 10 + Math.floor(rng() * 6)),
-          drip,
-          dripDelay: 40 + rng() * 170,
-          dripLength: 78 + rng() * Math.max(130, height * 0.38),
-          dripWidth: 3.2 + rng() * 8.6,
-          drift: (rng() - 0.5) * 34,
-        };
-      });
-
-      const droplets = Array.from({ length: 28 }, (_, index) => {
-        const angle = rng() * Math.PI * 2;
-        const distance = 26 + rng() * Math.min(width, height) * 0.48;
-        return {
-          x: origin.x + Math.cos(angle) * distance,
-          y: origin.y + Math.sin(angle) * distance,
-          radius: 1.6 + rng() * 6.4,
-          stretch: 0.75 + rng() * 0.9,
-          rotation: angle + (rng() - 0.5) * 0.7,
-          delay: (index % 7) * 18 + rng() * 145,
-        };
-      });
-
-      return {
-        origin,
-        farthest,
-        seedBlob: makeBlob(rng, 24, 12),
-        floodBlob: makeBlob(rng, farthest * 1.2, 24),
-        splats,
-        droplets,
-      };
-    }
-
-    function resizeCanvas(force = false) {
-      if (!force && ![STATES.IDLE, STATES.HOLDING].includes(state)) return;
-
-      const rect = canvas.getBoundingClientRect();
-      width = Math.max(1, Math.round(rect.width || window.innerWidth));
-      height = Math.max(1, Math.round(rect.height || window.innerHeight));
-      dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
-
-      canvas.width = Math.max(1, Math.round(width * dpr));
-      canvas.height = Math.max(1, Math.round(height * dpr));
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      model = createModel(seed);
-
-      if (state === STATES.HOLDING) {
-        drawFrame(0, currentHoldProgress());
-      } else {
-        clearCanvas();
-      }
-    }
-
-    function freezeCanvasSize() {
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-    }
-
-    function unfreezeCanvasSize() {
-      canvas.style.removeProperty('width');
-      canvas.style.removeProperty('height');
-    }
-
-    function pathBlob(cx, cy, points, scaleX = 1, scaleY = 1) {
+    function pathBlob(context, cx, cy, points, scaleX = 1, scaleY = 1) {
       const vertices = points.map((point) => ({
         x: cx + Math.cos(point.angle) * point.radius * scaleX,
         y: cy + Math.sin(point.angle) * point.radius * scaleY,
@@ -205,353 +101,412 @@
       context.closePath();
     }
 
-    function fillBlob(cx, cy, points, scale, alpha = 1, stretchY = 1) {
+    function fillBlob(context, cx, cy, points, scale, alpha = 1, stretchY = 1) {
+      context.save();
       context.globalAlpha = alpha;
-      pathBlob(cx, cy, points, scale, scale * stretchY);
+      context.fillStyle = INK;
+      pathBlob(context, cx, cy, points, scale, scale * stretchY);
       context.fill();
+      context.restore();
     }
 
-    function clearCanvas() {
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      context.clearRect(0, 0, width, height);
-      context.globalAlpha = 1;
-      context.fillStyle = INK;
-      context.strokeStyle = INK;
+    function configureContexts() {
+      display.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ink.setTransform(dpr, 0, 0, dpr, 0, 0);
+      display.fillStyle = INK;
+      display.strokeStyle = INK;
+      ink.fillStyle = INK;
+      ink.strokeStyle = INK;
     }
 
-    function drawSeed(progress) {
-      if (!model || progress <= 0) return;
-
-      const eased = progress * 0.35 + easeInOutCubic(progress) * 0.65;
-      const scale = 0.08 + eased * 0.78;
-      context.fillStyle = INK;
-
-      fillBlob(model.origin.x, model.origin.y, model.seedBlob, scale * 1.14, 0.07 + progress * 0.1, 1.06);
-      fillBlob(model.origin.x, model.origin.y, model.seedBlob, scale, 0.72 + progress * 0.26, 1);
+    function clearDisplay() {
+      display.setTransform(1, 0, 0, 1, 0, 0);
+      display.clearRect(0, 0, canvas.width, canvas.height);
+      display.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
-    function drawSplash(time) {
-      if (!model) return;
-
-      context.fillStyle = INK;
-
-      for (const splat of model.splats) {
-        const local = clamp01((time - splat.delay) / Math.max(175, SPLASH_MS - splat.delay));
-        if (local <= 0) continue;
-
-        const eased = easeOutBack(local);
-        fillBlob(splat.x, splat.y, splat.points, eased * 1.1, 0.065, 1.035);
-        fillBlob(splat.x, splat.y, splat.points, eased, 0.96, 1);
-      }
-
-      for (const drop of model.droplets) {
-        const local = clamp01((time - drop.delay) / 190);
-        if (local <= 0) continue;
-
-        const eased = easeOutBack(local);
-        context.globalAlpha = 0.88 * easeOutCubic(local);
-        context.save();
-        context.translate(drop.x, drop.y);
-        context.rotate(drop.rotation);
-        context.beginPath();
-        context.ellipse(0, 0, drop.radius * eased, drop.radius * drop.stretch * eased, 0, 0, Math.PI * 2);
-        context.fill();
-        context.restore();
-      }
+    function clearBuffer() {
+      ink.setTransform(1, 0, 0, 1, 0, 0);
+      ink.clearRect(0, 0, buffer.width, buffer.height);
+      ink.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
-    function drawDrip(splat, local) {
-      if (!splat.drip || local <= 0) return;
-
-      const progress = easeInOutCubic(local);
-      const length = splat.dripLength * progress;
-      const endX = splat.x + splat.drift * progress;
-      const startY = splat.y + splat.radius * 0.32;
-      const widthNow = splat.dripWidth * (1 - progress * 0.26);
-
-      context.globalAlpha = 0.94;
-      context.lineCap = 'round';
-      context.strokeStyle = INK;
-      context.lineWidth = widthNow;
-      context.beginPath();
-      context.moveTo(splat.x, startY);
-      context.bezierCurveTo(
-        splat.x + splat.drift * 0.12,
-        startY + length * 0.28,
-        endX - splat.drift * 0.1,
-        startY + length * 0.72,
-        endX,
-        startY + length
-      );
-      context.stroke();
-
-      context.fillStyle = INK;
-      context.beginPath();
-      context.ellipse(
-        endX,
-        startY + length,
-        widthNow * (1.2 + progress * 0.5),
-        widthNow * (1.45 + progress * 0.68),
-        0,
-        0,
-        Math.PI * 2
-      );
-      context.fill();
+    function compositeBuffer() {
+      clearDisplay();
+      display.setTransform(1, 0, 0, 1, 0, 0);
+      display.drawImage(buffer, 0, 0);
+      display.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
-    function drawBleed(time) {
-      if (!model) return;
+    function resizeCanvas(force = false) {
+      if (!force && state !== STATES.IDLE) return;
 
-      const phaseTime = time - SPLASH_MS;
-      const phaseProgress = clamp01(phaseTime / BLEED_MS);
-      if (phaseProgress <= 0) return;
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, Math.round(rect.width || window.innerWidth));
+      height = Math.max(1, Math.round(rect.height || window.innerHeight));
+      dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
 
-      context.fillStyle = INK;
+      const pixelWidth = Math.max(1, Math.round(width * dpr));
+      const pixelHeight = Math.max(1, Math.round(height * dpr));
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+      buffer.width = pixelWidth;
+      buffer.height = pixelHeight;
+      configureContexts();
+      clearBuffer();
+      clearDisplay();
+    }
 
-      model.splats.forEach((splat, index) => {
-        const local = clamp01((phaseTime - index * 20) / (BLEED_MS * 0.84));
-        const swell = 1 + easeOutCubic(local) * 0.19;
+    function freezeCanvasSize() {
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
 
-        fillBlob(splat.x, splat.y, splat.points, swell * 1.09, 0.05, 1.04);
-        fillBlob(splat.x, splat.y, splat.points, swell, 0.98, 1);
+    function unfreezeCanvasSize() {
+      canvas.style.removeProperty('width');
+      canvas.style.removeProperty('height');
+    }
 
-        const dripLocal = clamp01((phaseTime - splat.dripDelay) / (BLEED_MS - splat.dripDelay * 0.45));
-        drawDrip(splat, dripLocal);
+    function createModel(originInput) {
+      const rng = rngFactory(seed);
+      const origin = {
+        x: Math.max(0, Math.min(width, originInput.x)),
+        y: Math.max(0, Math.min(height, originInput.y)),
+      };
+
+      const targetTemplate = [
+        [0.09, 0.11], [0.43, 0.08], [0.84, 0.14],
+        [0.10, 0.36], [0.52, 0.31], [0.89, 0.40],
+        [0.14, 0.66], [0.50, 0.60], [0.84, 0.67],
+        [0.30, 0.86], [0.72, 0.84],
+      ];
+
+      const gravity = Math.max(720, Math.min(1120, height * 1.18));
+      const projectiles = targetTemplate.map(([nx, ny], index) => {
+        const jitterX = (rng() - 0.5) * width * 0.075;
+        const jitterY = (rng() - 0.5) * height * 0.055;
+        const impactX = Math.max(16, Math.min(width - 16, nx * width + jitterX));
+        const impactY = Math.max(16, Math.min(height - 16, ny * height + jitterY));
+        const launchDelay = index < 3 ? rng() * 45 : 35 + rng() * 115;
+        const flightMs = 280 + rng() * 285;
+        const t = flightMs / 1000;
+        const vx = (impactX - origin.x) / t;
+        const vy = (impactY - origin.y - 0.5 * gravity * t * t) / t;
+        const radius = 24 + rng() * 39 + (index % 4 === 0 ? 14 : 0);
+        const impactBlob = makeBlob(rng, radius, 12 + Math.floor(rng() * 6));
+        const satellites = Array.from({ length: 2 + Math.floor(rng() * 4) }, () => ({
+          angle: rng() * Math.PI * 2,
+          distance: radius * (0.75 + rng() * 1.2),
+          radius: 1.6 + rng() * Math.max(3.4, radius * 0.10),
+          stretch: 0.72 + rng() * 0.65,
+        }));
+        const canDrip = impactY < height * 0.78 && (index === 1 || index === 3 || index === 4 || index === 5 || index === 7 || index === 8);
+
+        return {
+          index,
+          launchDelay,
+          flightMs,
+          impactAt: launchDelay + flightMs,
+          gravity,
+          vx,
+          vy,
+          impactX,
+          impactY,
+          radius,
+          impactBlob,
+          satellites,
+          impacted: false,
+          bleedStep: 0,
+          coverageStep: 0,
+          coverMaxRadius: Math.max(width * 0.34, height * 0.255) * (0.91 + rng() * 0.24),
+          drip: canDrip ? {
+            delay: 260 + rng() * 330,
+            buildUp: 120 + rng() * 120,
+            duration: 650 + rng() * 500,
+            gravity: 540 + rng() * 520,
+            baseWidth: 3.5 + rng() * 5.8,
+            drift: (rng() - 0.5) * 52,
+            wave: 4 + rng() * 11,
+            phase: rng() * Math.PI * 2,
+            frequency: 2.1 + rng() * 2.7,
+            lastX: null,
+            lastY: null,
+          } : null,
+        };
+      });
+
+      return { origin, projectiles };
+    }
+
+    function projectilePosition(projectile, elapsed) {
+      const localMs = Math.max(0, elapsed - projectile.launchDelay);
+      const t = Math.min(localMs, projectile.flightMs) / 1000;
+      return {
+        x: model.origin.x + projectile.vx * t,
+        y: model.origin.y + projectile.vy * t + 0.5 * projectile.gravity * t * t,
+        vx: projectile.vx,
+        vy: projectile.vy + projectile.gravity * t,
+      };
+    }
+
+    function depositImpact(projectile) {
+      if (projectile.impacted) return;
+      projectile.impacted = true;
+
+      fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, 1.10, 0.045, 1.035);
+      fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, 1, 0.97, 1);
+
+      projectile.satellites.forEach((satellite) => {
+        const x = projectile.impactX + Math.cos(satellite.angle) * satellite.distance;
+        const y = projectile.impactY + Math.sin(satellite.angle) * satellite.distance;
+        ink.save();
+        ink.translate(x, y);
+        ink.rotate(satellite.angle);
+        ink.globalAlpha = 0.8;
+        ink.fillStyle = INK;
+        ink.beginPath();
+        ink.ellipse(0, 0, satellite.radius, satellite.radius * satellite.stretch, 0, 0, Math.PI * 2);
+        ink.fill();
+        ink.restore();
       });
     }
 
-    function drawFlood(time) {
-      if (!model) return;
+    function updateBleed(projectile, elapsed) {
+      if (!projectile.impacted) return;
 
-      const phaseTime = time - SPLASH_MS - BLEED_MS;
-      const progress = clamp01(phaseTime / FLOOD_MS);
-      if (progress <= 0) return;
+      const age = elapsed - projectile.impactAt;
+      if (age <= 0) return;
 
-      const eased = easeInOutCubic(progress);
-      context.fillStyle = INK;
-
-      const floodScale = 0.055 + eased * 1.03;
-      fillBlob(model.origin.x, model.origin.y, model.floodBlob, floodScale * 1.03, 0.085, 1.08 + eased * 0.1);
-      fillBlob(
-        model.origin.x,
-        model.origin.y,
-        model.floodBlob,
-        floodScale,
-        Math.min(1, 0.77 + eased * 0.28),
-        1.06 + eased * 0.1
-      );
-
-      if (progress > 0.8) {
-        context.globalAlpha = clamp01((progress - 0.8) / 0.2);
-        context.fillRect(0, 0, width, height);
+      const targetStep = Math.min(10, Math.floor(age / BLEED_STEP_MS));
+      while (projectile.bleedStep < targetStep) {
+        projectile.bleedStep += 1;
+        const step = projectile.bleedStep;
+        const scale = 1 + step * 0.038;
+        const edgeAlpha = 0.012 + step * 0.0014;
+        const coreAlpha = 0.035 + step * 0.003;
+        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale * 1.055, edgeAlpha, 1.035);
+        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale, coreAlpha, 1.01);
       }
     }
 
-    function drawFrame(timeMs = 0, holdProgress = 0) {
-      clearCanvas();
-      drawSeed(holdProgress);
+    function dripPosition(projectile, elapsed) {
+      const drip = projectile.drip;
+      if (!drip) return null;
 
-      if (timeMs > 0) {
-        drawSplash(timeMs);
-        drawBleed(timeMs);
-        drawFlood(timeMs);
+      const age = elapsed - projectile.impactAt - drip.delay;
+      if (age <= 0) return null;
+
+      const startX = projectile.impactX + (projectile.index % 2 ? -1 : 1) * projectile.radius * 0.08;
+      const startY = projectile.impactY + projectile.radius * 0.34;
+      const build = clamp01(age / drip.buildUp);
+      const movingAge = Math.max(0, age - drip.buildUp);
+      const t = Math.min(movingAge, drip.duration) / 1000;
+      const moving = age >= drip.buildUp;
+      const x = moving
+        ? startX + drip.drift * t + Math.sin(t * drip.frequency * Math.PI + drip.phase) * drip.wave
+        : startX;
+      const y = moving ? startY + 0.5 * drip.gravity * t * t : startY;
+
+      return {
+        x,
+        y,
+        age,
+        build,
+        moving,
+        t,
+        done: movingAge >= drip.duration || y > height + 30,
+      };
+    }
+
+    function updateDrip(projectile, elapsed) {
+      const drip = projectile.drip;
+      if (!drip || !projectile.impacted) return;
+
+      const position = dripPosition(projectile, elapsed);
+      if (!position || !position.moving) return;
+
+      if (drip.lastX === null || drip.lastY === null) {
+        drip.lastX = position.x;
+        drip.lastY = position.y;
+        return;
       }
 
-      context.globalAlpha = 1;
+      const speedFactor = clamp01(position.t / Math.max(0.35, drip.duration / 1000));
+      const widthNow = drip.baseWidth * (0.94 - speedFactor * 0.22 + Math.sin(position.t * 8 + drip.phase) * 0.08);
+      const midX = (drip.lastX + position.x) / 2 + Math.sin(position.t * 9 + drip.phase) * 1.8;
+      const midY = (drip.lastY + position.y) / 2;
+
+      ink.save();
+      ink.globalAlpha = 0.93;
+      ink.strokeStyle = INK;
+      ink.lineCap = 'round';
+      ink.lineJoin = 'round';
+      ink.lineWidth = Math.max(1.4, widthNow);
+      ink.beginPath();
+      ink.moveTo(drip.lastX, drip.lastY);
+      ink.quadraticCurveTo(midX, midY, position.x, position.y);
+      ink.stroke();
+      ink.restore();
+
+      drip.lastX = position.x;
+      drip.lastY = position.y;
+    }
+
+    function updateCoverage(projectile, elapsed) {
+      if (!projectile.impacted || elapsed < 1080) return;
+
+      const coverageProgress = clamp01((elapsed - 1080) / (COVERED_MS - 1080));
+      const targetStep = Math.min(22, Math.floor(coverageProgress * 22));
+
+      while (projectile.coverageStep < targetStep) {
+        projectile.coverageStep += 1;
+        const local = projectile.coverageStep / 22;
+        const eased = easeInOutCubic(local);
+        const radius = projectile.radius + (projectile.coverMaxRadius - projectile.radius) * eased;
+        const scale = radius / projectile.radius;
+        const alpha = 0.085 + eased * 0.075;
+
+        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale * 1.025, alpha * 0.36, 1.025);
+        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale, alpha, 1);
+
+        if (local > 0.84) {
+          fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale * 0.955, 0.19 + eased * 0.14, 1);
+        }
+      }
+    }
+
+    function drawProjectile(projectile, elapsed) {
+      if (elapsed < projectile.launchDelay || elapsed >= projectile.impactAt) return;
+
+      const position = projectilePosition(projectile, elapsed);
+      const local = clamp01((elapsed - projectile.launchDelay) / projectile.flightMs);
+      const speed = Math.hypot(position.vx, position.vy);
+      const angle = Math.atan2(position.vy, position.vx);
+      const baseRadius = Math.max(3.2, projectile.radius * 0.16);
+      const length = baseRadius * (1.3 + Math.min(2.2, speed / 500));
+      const widthNow = baseRadius * (0.68 + local * 0.16);
+
+      display.save();
+      display.translate(position.x, position.y);
+      display.rotate(angle);
+      display.fillStyle = INK;
+      display.globalAlpha = 0.9;
+      display.beginPath();
+      display.ellipse(0, 0, length, widthNow, 0, 0, Math.PI * 2);
+      display.fill();
+      display.globalAlpha = 0.22;
+      display.beginPath();
+      display.ellipse(-length * 0.95, 0, length * 0.75, widthNow * 0.45, 0, 0, Math.PI * 2);
+      display.fill();
+      display.restore();
+    }
+
+    function drawDripHead(projectile, elapsed) {
+      const drip = projectile.drip;
+      if (!drip) return;
+      const position = dripPosition(projectile, elapsed);
+      if (!position || position.done) return;
+
+      const ageProgress = clamp01(Math.max(0, position.age - drip.buildUp) / drip.duration);
+      const radius = drip.baseWidth * (0.75 + position.build * 0.75 + ageProgress * 0.45);
+      display.save();
+      display.globalAlpha = 0.95;
+      display.fillStyle = INK;
+      display.beginPath();
+      display.ellipse(position.x, position.y, radius, radius * 1.34, 0, 0, Math.PI * 2);
+      display.fill();
+      display.restore();
+    }
+
+    function updatePersistentInk(elapsed) {
+      model.projectiles.forEach((projectile) => {
+        if (elapsed >= projectile.impactAt) depositImpact(projectile);
+        updateBleed(projectile, elapsed);
+        updateDrip(projectile, elapsed);
+        updateCoverage(projectile, elapsed);
+      });
+    }
+
+    function drawTransient(elapsed) {
+      model.projectiles.forEach((projectile) => {
+        drawProjectile(projectile, elapsed);
+        drawDripHead(projectile, elapsed);
+      });
+    }
+
+    function render(elapsed) {
+      updatePersistentInk(elapsed);
+      compositeBuffer();
+      drawTransient(elapsed);
     }
 
     function drawCoveredFrame() {
-      clearCanvas();
-      context.globalAlpha = 1;
-      context.fillStyle = INK;
-      context.fillRect(0, 0, width, height);
-    }
-
-    function setButtonProgress(progress) {
-      const value = clamp01(progress);
-      trigger.style.setProperty('--ink-press', value.toFixed(4));
-      trigger.classList.toggle('is-holding', state === STATES.HOLDING && value > 0);
-    }
-
-    function currentHoldProgress() {
-      if (state !== STATES.HOLDING || !holdStartedAt) return 0;
-      return clamp01((performance.now() - holdStartedAt) / HOLD_MS);
+      clearDisplay();
+      display.save();
+      display.globalAlpha = 1;
+      display.fillStyle = INK;
+      display.fillRect(0, 0, width, height);
+      display.restore();
     }
 
     function setCanvasVisible(visible) {
       canvas.classList.toggle('is-active', visible);
     }
 
-    function setCommittedVisualState(committed) {
-      canvas.classList.toggle('is-committed', committed);
-      trigger.classList.toggle('is-committed', committed);
-      trigger.setAttribute('aria-disabled', committed ? 'true' : 'false');
-    }
-
-    function releaseCapturedPointer() {
-      if (pointerId === null) return;
-
-      if (trigger.releasePointerCapture) {
-        try {
-          if (!trigger.hasPointerCapture || trigger.hasPointerCapture(pointerId)) {
-            trigger.releasePointerCapture(pointerId);
-          }
-        } catch (_) {
-          // Pointer capture can already be released by the browser.
-        }
-      }
-
-      pointerId = null;
-    }
-
-    function resetHoldOnly() {
-      cancelAnimationFrame(frame);
-      frame = 0;
-      holdStartedAt = 0;
-      keyboardKey = null;
-      releaseCapturedPointer();
-      state = STATES.IDLE;
-      setButtonProgress(0);
-      setCommittedVisualState(false);
-      setCanvasVisible(false);
-      clearCanvas();
-    }
-
-    function cancelHold() {
-      if (state !== STATES.HOLDING) return;
-      resetHoldOnly();
-    }
-
     function finishCovered() {
       cancelAnimationFrame(frame);
       frame = 0;
+      render(COVERED_MS - 1);
       drawCoveredFrame();
       state = STATES.COVERED;
       onCovered();
     }
 
-    function tickTransition(now) {
-      if (![STATES.COMMITTED, STATES.SPLASH, STATES.BLEED, STATES.FLOOD].includes(state)) return;
+    function tick(now) {
+      if (![STATES.SPLASH, STATES.BLEED, STATES.COVERAGE].includes(state)) return;
 
-      const elapsed = now - transitionStartedAt;
+      const elapsed = now - startedAt;
+      const delta = lastFrameAt ? now - lastFrameAt : 16.7;
+      lastFrameAt = now;
+      void delta;
 
-      if (elapsed < SPLASH_MS) {
-        state = STATES.SPLASH;
-      } else if (elapsed < SPLASH_MS + BLEED_MS) {
-        state = STATES.BLEED;
-      } else {
-        state = STATES.FLOOD;
-      }
+      if (elapsed < SPLASH_MS) state = STATES.SPLASH;
+      else if (elapsed < BLEED_END_MS) state = STATES.BLEED;
+      else state = STATES.COVERAGE;
 
-      drawFrame(elapsed, 1);
+      render(elapsed);
 
-      if (elapsed >= TOTAL_MS) {
+      if (elapsed >= COVERED_MS) {
         finishCovered();
         return;
       }
 
-      frame = requestAnimationFrame(tickTransition);
+      frame = requestAnimationFrame(tick);
     }
 
-    function commitTransition(now) {
-      if (state !== STATES.HOLDING) return;
+    function start(origin) {
+      if (state !== STATES.IDLE) return false;
 
-      cancelAnimationFrame(frame);
-      frame = 0;
-      state = STATES.COMMITTED;
-      holdStartedAt = 0;
-      keyboardKey = null;
-      releaseCapturedPointer();
-      setButtonProgress(1);
-      setCommittedVisualState(true);
-      setCanvasVisible(true);
+      resizeCanvas(true);
       freezeCanvasSize();
-      model = createModel(seed);
-      onCommit();
+      clearBuffer();
+      clearDisplay();
+      model = createModel(origin);
+      released = false;
+      setCanvasVisible(true);
 
       if (reducedMotion) {
-        drawCoveredFrame();
         state = STATES.COVERED;
+        drawCoveredFrame();
         onCovered();
-        return;
+        return true;
       }
 
-      transitionStartedAt = now;
-      frame = requestAnimationFrame(tickTransition);
-    }
-
-    function tickHold(now) {
-      if (state !== STATES.HOLDING) return;
-
-      const progress = clamp01((now - holdStartedAt) / HOLD_MS);
-      setButtonProgress(progress);
-      drawFrame(0, progress);
-
-      if (progress >= 1) {
-        commitTransition(now);
-        return;
-      }
-
-      frame = requestAnimationFrame(tickHold);
-    }
-
-    function startHold(event) {
-      if (state !== STATES.IDLE || !canStart()) return;
-      if (event.type === 'pointerdown' && event.button !== 0) return;
-
-      event.preventDefault();
-      resizeCanvas(true);
-      model = createModel(seed);
-      state = STATES.HOLDING;
-      holdStartedAt = performance.now();
-      setCanvasVisible(true);
-      setButtonProgress(0);
-
-      if (event.type === 'pointerdown') {
-        pointerId = event.pointerId;
-        if (trigger.setPointerCapture) {
-          try {
-            trigger.setPointerCapture(pointerId);
-          } catch (_) {
-            pointerId = null;
-          }
-        }
-      } else if (event.type === 'keydown') {
-        keyboardKey = event.key;
-      }
-
-      frame = requestAnimationFrame(tickHold);
-    }
-
-    function onPointerUp(event) {
-      if (pointerId !== null && event.pointerId === pointerId) {
-        releaseCapturedPointer();
-      }
-      cancelHold();
-    }
-
-    function onPointerCancel(event) {
-      if (pointerId !== null && event.pointerId === pointerId) {
-        releaseCapturedPointer();
-      }
-      cancelHold();
-    }
-
-    function onKeyDown(event) {
-      if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
-        startHold(event);
-      }
-    }
-
-    function onKeyUp(event) {
-      if (keyboardKey && event.key === keyboardKey) {
-        keyboardKey = null;
-        cancelHold();
-      }
-    }
-
-    function onResize() {
-      resizeCanvas();
+      state = STATES.SPLASH;
+      startedAt = performance.now();
+      lastFrameAt = startedAt;
+      frame = requestAnimationFrame(tick);
+      return true;
     }
 
     function release() {
@@ -561,9 +516,10 @@
 
       const finish = () => {
         canvas.removeEventListener('transitionend', onTransitionEnd);
-        canvas.classList.remove('is-releasing', 'is-committed', 'is-active');
+        canvas.classList.remove('is-releasing', 'is-active');
         unfreezeCanvasSize();
-        clearCanvas();
+        clearBuffer();
+        clearDisplay();
         onDone();
       };
 
@@ -579,7 +535,6 @@
       canvas.addEventListener('transitionend', onTransitionEnd);
       requestAnimationFrame(() => canvas.classList.add('is-releasing'));
 
-      // Fallback only for browsers that do not emit transitionend reliably.
       window.setTimeout(() => {
         if (canvas.classList.contains('is-releasing')) finish();
       }, 650);
@@ -589,40 +544,33 @@
       cancelAnimationFrame(frame);
       frame = 0;
       released = false;
-      transitionStartedAt = 0;
-      holdStartedAt = 0;
-      keyboardKey = null;
-      releaseCapturedPointer();
+      startedAt = 0;
+      lastFrameAt = 0;
       state = STATES.IDLE;
-      canvas.classList.remove('is-releasing', 'is-committed', 'is-active');
+      model = null;
+      canvas.classList.remove('is-releasing', 'is-active');
       unfreezeCanvasSize();
-      setCommittedVisualState(false);
-      setButtonProgress(0);
       resizeCanvas(true);
-      clearCanvas();
+      clearBuffer();
+      clearDisplay();
+    }
+
+    function onResize() {
+      resizeCanvas();
     }
 
     function destroy() {
       cancelAnimationFrame(frame);
-      trigger.removeEventListener('pointerdown', startHold);
-      trigger.removeEventListener('pointerup', onPointerUp);
-      trigger.removeEventListener('pointercancel', onPointerCancel);
-      trigger.removeEventListener('keydown', onKeyDown);
-      trigger.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('resize', onResize);
-      clearCanvas();
+      clearBuffer();
+      clearDisplay();
     }
 
-    trigger.addEventListener('pointerdown', startHold);
-    trigger.addEventListener('pointerup', onPointerUp);
-    trigger.addEventListener('pointercancel', onPointerCancel);
-    trigger.addEventListener('keydown', onKeyDown);
-    trigger.addEventListener('keyup', onKeyUp);
     window.addEventListener('resize', onResize, { passive: true });
-
     resizeCanvas(true);
 
     return {
+      start,
       reset,
       release,
       destroy,

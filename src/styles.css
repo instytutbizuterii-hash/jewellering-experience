@@ -168,7 +168,7 @@ button { font: inherit; }
 }
 
 .enter-button {
-  --ink-press: 0;
+  --hold-progress: 0;
   position: relative;
   display: inline-grid;
   min-width: 250px;
@@ -182,53 +182,102 @@ button { font: inherit; }
   opacity: 0;
   transform: translateY(11px) scale(1);
   transform-origin: center;
-  transition: opacity .58s ease, transform .72s cubic-bezier(.2,.72,.25,1), border-color .2s ease, box-shadow .2s ease;
+  transition: opacity .58s ease, transform .72s cubic-bezier(.2,.72,.25,1), border-color .2s ease;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
+  isolation: isolate;
 }
 
 .intro.is-cta-visible .enter-button {
   opacity: 1;
-  transform: translateY(0) scale(calc(1 - var(--ink-press) * .018));
+  transform: translateY(0) scale(calc(1 - var(--hold-progress) * .017));
   pointer-events: auto;
+}
+
+.enter-button::before {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  inset: -8px;
+  border: 1px solid rgba(18,18,18,.05);
+  border-radius: inherit;
+  opacity: calc(var(--hold-progress) * .82);
+  transform: scale(calc(1 + var(--hold-progress) * .018));
+  box-shadow: 0 0 24px rgba(18,18,18,.055);
+  pointer-events: none;
 }
 
 .enter-button::after {
   content: '';
   position: absolute;
+  z-index: -1;
   inset: 5px;
   border: 1px solid rgba(18,18,18,.13);
-  border-radius: 999px;
+  border-radius: inherit;
   pointer-events: none;
-  transition: border-color .2s ease, inset .2s ease;
+  transition: border-color .15s ease, inset .15s ease, opacity .15s ease;
 }
 
-.enter-button.is-holding {
-  box-shadow: 0 0 0 5px rgba(18,18,18,.035);
+.hold-progress {
+  position: absolute;
+  z-index: 3;
+  inset: -6px;
+  pointer-events: none;
+}
+
+.hold-progress svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hold-progress path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 .enter-button.is-holding::after {
   inset: 6px;
-  border-color: rgba(18,18,18,.2);
+  border-color: rgba(18,18,18,.19);
+}
+
+.enter-button.is-completing {
+  animation: hold-complete-pulse .15s ease-out 1;
+}
+
+.enter-button.is-completing .hold-progress path,
+.enter-button.is-committed .hold-progress path {
+  stroke-width: 2.25;
 }
 
 .enter-button.is-committed {
   pointer-events: none;
-  box-shadow: 0 0 0 7px rgba(18,18,18,.05);
 }
 
 .hold-button-label {
   position: relative;
-  z-index: 1;
-  opacity: calc(1 - var(--ink-press) * .12);
+  z-index: 2;
+  opacity: 1;
+}
+
+@keyframes hold-complete-pulse {
+  50% {
+    transform: translateY(0) scale(.972);
+  }
 }
 
 /* INK TRANSITION */
 .ink-transition {
   position: fixed;
-  z-index: 2;
+  z-index: 70;
   top: 0;
   left: 0;
   width: 100%;
@@ -243,9 +292,6 @@ button { font: inherit; }
   visibility: visible;
 }
 
-.ink-transition.is-committed {
-  z-index: 70;
-}
 
 .ink-transition.is-releasing {
   opacity: 0;
@@ -317,7 +363,7 @@ button { font: inherit; }
 }
 
 @media (hover: hover) {
-  .intro.is-cta-visible .enter-button:hover:not(.is-holding):not(.is-committed) {
+  .intro.is-cta-visible .enter-button:hover:not(.is-holding):not(.is-completing):not(.is-committed) {
     transform: translateY(-2px) scale(1);
   }
   .outline-button:hover { background: var(--ink); color: var(--paper); }
