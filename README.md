@@ -1,6 +1,6 @@
 # Biżufitting Experience
 
-Wersja: **0.1.8**
+Wersja: **0.1.9**
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
@@ -8,21 +8,18 @@ Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie
 
 Projekt jest statyczny. Otwórz `index.html` lokalnie albo opublikuj zawartość katalogu `REPO/` przez GitHub Pages.
 
-## v0.1.8 — CTA Hold + Ink Physics Rebuild
+## v0.1.9 — Ink Merge / Gravity Refinement
 
-- feedback przytrzymania został oddzielony od renderera tuszu,
-- CTA pokazuje postęp po obwodzie: dwie ścieżki SVG rosną symetrycznie od dolnego środka,
-- ink seed pod palcem został całkowicie usunięty,
-- pointer capture, cancel przed 100% oraz jednokierunkowy commit zostały zachowane,
-- tusz zaczyna się dopiero po domknięciu CTA i krótkim completion pulse,
-- splash ma rzeczywistą fazę lotu: projectile → impact → trwały ślad,
-- renderer używa persistent ink buffer, więc plamy, bleed i drips naprawdę akumulują się w czasie,
-- drips odkładają ślad segment po segmencie zamiast skalować gotową linię,
-- końcowe pokrycie powstaje z wielu organicznych frontów wyrastających z istniejących plam,
-- usunięto progresywny pełnoekranowy `fillRect` używany w v0.1.7 jako imitacja blackout,
-- finalny snap do idealnej czerni następuje dopiero po wizualnym pokryciu viewportu,
-- seed QA: `1808`, DPR cap: `2`, brak `Math.random()` w render loop,
-- `prefers-reduced-motion` zachowuje hold, ale pomija intensywną fizykę tuszu.
+- zachowano CTA hold, perimeter progress, splash flight i impact z v0.1.8,
+- usunięto model dripów `moving head + thin trail`,
+- po impact kropla staje się częścią trwałej masy tuszu,
+- spływanie powstaje przez dokładanie zachodzących na siebie lobes pod istniejącą masą,
+- lokalne połączenia są szerokie i pozostają w persistent ink buffer,
+- sąsiednie obszary łączą się przez wspólną geometrię zamiast poruszających się „główek”,
+- coverage korzysta z tego samego modelu masy, bez globalnego fade do czerni,
+- finalny snap do idealnej czerni występuje dopiero po faktycznym pokryciu ekranu,
+- renderer pozostaje deterministyczny (`seed: 1808`), time-based i ma DPR cap = 2,
+- `hold-cta.js`, wordmark `Biżufitting`, intro, historia oraz restart nie zostały przebudowane.
 
 ## Struktura
 

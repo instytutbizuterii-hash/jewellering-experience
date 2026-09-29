@@ -4,7 +4,7 @@
   const STATES = Object.freeze({
     IDLE: 'IDLE',
     SPLASH: 'SPLASH',
-    BLEED: 'BLEED',
+    MERGE: 'MERGE',
     COVERAGE: 'COVERAGE',
     COVERED: 'COVERED',
     DONE: 'DONE',
@@ -51,12 +51,14 @@
     if (!ink) throw new Error('InkTransition requires an offscreen Canvas 2D buffer.');
 
     const SPLASH_MS = 650;
-    const BLEED_END_MS = 1450;
+    const MERGE_END_MS = 1760;
     const COVERED_MS = 2700;
-    const BLEED_STEP_MS = 58;
-    const COVERAGE_STEP_MS = 66;
     const DPR_CAP = 2;
     const INK = '#0c0c0d';
+
+    const MASS_GROW_STEPS = 7;
+    const MASS_BLEED_STEPS = 5;
+    const MAX_MERGE_CONNECTIONS = 3;
 
     let state = STATES.IDLE;
     let frame = 0;
@@ -65,7 +67,6 @@
     let dpr = 1;
     let model = null;
     let startedAt = 0;
-    let lastFrameAt = 0;
     let released = false;
 
     function makeBlob(rng, radius, lobes = 15) {
@@ -74,8 +75,8 @@
 
       for (let index = 0; index < lobes; index += 1) {
         const angle = phase + (index / lobes) * Math.PI * 2;
-        const wave = Math.sin(index * 1.73 + phase) * 0.08;
-        const jitter = 0.72 + rng() * 0.42 + wave;
+        const wave = Math.sin(index * 1.73 + phase) * 0.055;
+        const jitter = 0.78 + rng() * 0.34 + wave;
         points.push({ angle, radius: radius * jitter });
       }
 
@@ -101,12 +102,51 @@
       context.closePath();
     }
 
-    function fillBlob(context, cx, cy, points, scale, alpha = 1, stretchY = 1) {
+    function fillBlob(context, node, scale = 1, alpha = 1) {
       context.save();
       context.globalAlpha = alpha;
       context.fillStyle = INK;
-      pathBlob(context, cx, cy, points, scale, scale * stretchY);
+      pathBlob(
+        context,
+        node.x,
+        node.y,
+        node.shape,
+        node.sx * scale,
+        node.sy * scale,
+      );
       context.fill();
+      context.restore();
+    }
+
+    function drawMassBridge(context, a, b, widthScale = 1, alpha = 0.96) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 0.5) return;
+
+      const ux = dx / distance;
+      const uy = dy / distance;
+      const px = -uy;
+      const py = ux;
+      const bend = ((a.bridgeBias || 0) + (b.bridgeBias || 0)) * 0.5;
+      const bendMagnitude = Math.min(16, distance * 0.09) * bend;
+      const midX = (a.x + b.x) / 2 + px * bendMagnitude;
+      const midY = (a.y + b.y) / 2 + py * bendMagnitude;
+      const neckWidth = Math.max(
+        5,
+        Math.min(a.radius, b.radius) * (0.92 + Math.min(widthScale, 1.25) * 0.22),
+      );
+
+      context.save();
+      context.globalAlpha = alpha;
+      context.strokeStyle = INK;
+      context.lineWidth = neckWidth * widthScale;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.beginPath();
+      context.moveTo(a.x, a.y);
+      context.quadraticCurveTo(midX, midY, b.x, b.y);
+      context.stroke();
       context.restore();
     }
 
@@ -167,6 +207,112 @@
       canvas.style.removeProperty('height');
     }
 
+    function createMassNode(rng, data) {
+      const radius = Math.max(3, data.radius);
+      return {
+        id: data.id,
+        clusterId: data.clusterId,
+        parentId: data.parentId ?? null,
+        x: data.x,
+        y: data.y,
+        radius,
+        sx: data.sx ?? (0.92 + rng() * 0.16),
+        sy: data.sy ?? (0.98 + rng() * 0.22),
+        shape: makeBlob(rng, radius, 12 + Math.floor(rng() * 5)),
+        bridgeBias: rng() * 2 - 1,
+        startAt: data.startAt,
+        growMs: data.growMs ?? (150 + rng() * 90),
+        growStep: 0,
+        bleedStep: 0,
+        deposited: false,
+        connected: false,
+        isCoverage: Boolean(data.isCoverage),
+      };
+    }
+
+    function createGravityChain(rng, projectile, impactNode, chainIndex) {
+      if (!projectile.canGravity) return [];
+
+      const nodes = [];
+      const count = 6 + Math.floor(rng() * 3);
+      let parent = impactNode;
+      let x = impactNode.x + (rng() - 0.5) * impactNode.radius * 0.22;
+      let y = impactNode.y + impactNode.radius * 0.48;
+      let radius = impactNode.radius * (0.74 + rng() * 0.08);
+      const drift = (rng() - 0.5) * Math.min(28, width * 0.05);
+
+      for (let index = 0; index < count; index += 1) {
+        const stepY = radius * (0.30 + rng() * 0.13);
+        x += drift * (0.12 + index * 0.02) + (rng() - 0.5) * radius * 0.22;
+        y += stepY;
+        radius *= 0.94 + rng() * 0.035;
+
+        if (y > height + radius * 0.4) break;
+
+        const node = createMassNode(rng, {
+          id: `g-${chainIndex}-${index}`,
+          clusterId: impactNode.clusterId,
+          parentId: parent.id,
+          x,
+          y,
+          radius,
+          sx: 0.90 + rng() * 0.16,
+          sy: 1.06 + rng() * 0.18,
+          startAt: projectile.impactAt + 290 + index * (104 + rng() * 36),
+          growMs: 210 + rng() * 90,
+        });
+
+        nodes.push(node);
+        parent = node;
+      }
+
+      return nodes;
+    }
+
+    function createCoverageNodes(rng, impactNodes, gravityNodes) {
+      const candidates = [
+        [-0.04, 0.12, 0.21], [0.27, 0.08, 0.20], [0.62, 0.11, 0.21], [1.04, 0.15, 0.22],
+        [0.10, 0.38, 0.22], [0.42, 0.34, 0.21], [0.76, 0.38, 0.21], [1.02, 0.42, 0.22],
+        [-0.02, 0.65, 0.22], [0.30, 0.63, 0.21], [0.60, 0.62, 0.22], [0.90, 0.66, 0.21],
+        [0.10, 0.91, 0.23], [0.46, 0.90, 0.22], [0.78, 0.92, 0.24], [1.05, 0.90, 0.23],
+      ];
+
+      const allExisting = [...impactNodes, ...gravityNodes];
+
+      return candidates.map(([nx, ny, relative], index) => {
+        const x = nx * width + (rng() - 0.5) * width * 0.055;
+        const y = ny * height + (rng() - 0.5) * height * 0.045;
+        const radius = Math.max(width, height) * relative * (0.86 + rng() * 0.14);
+
+        let nearest = allExisting[0];
+        let nearestDistance = Infinity;
+        allExisting.forEach((node) => {
+          const distance = Math.hypot(node.x - x, node.y - y);
+          if (distance < nearestDistance) {
+            nearest = node;
+            nearestDistance = distance;
+          }
+        });
+
+        const node = createMassNode(rng, {
+          id: `c-${index}`,
+          clusterId: `coverage-${index}`,
+          parentId: nearest?.id ?? null,
+          x,
+          y,
+          radius,
+          sx: 0.94 + rng() * 0.12,
+          sy: 0.96 + rng() * 0.15,
+          startAt: 1580 + index * 66 + rng() * 80,
+          growMs: 520 + rng() * 190,
+          isCoverage: true,
+        });
+
+        allExisting.push(node);
+        return node;
+      });
+    }
+
     function createModel(originInput) {
       const rng = rngFactory(seed);
       const origin = {
@@ -182,6 +328,9 @@
       ];
 
       const gravity = Math.max(720, Math.min(1120, height * 1.18));
+      const massNodes = [];
+      const impactNodes = [];
+      const gravityNodes = [];
       const projectiles = targetTemplate.map(([nx, ny], index) => {
         const jitterX = (rng() - 0.5) * width * 0.075;
         const jitterY = (rng() - 0.5) * height * 0.055;
@@ -193,16 +342,9 @@
         const vx = (impactX - origin.x) / t;
         const vy = (impactY - origin.y - 0.5 * gravity * t * t) / t;
         const radius = 24 + rng() * 39 + (index % 4 === 0 ? 14 : 0);
-        const impactBlob = makeBlob(rng, radius, 12 + Math.floor(rng() * 6));
-        const satellites = Array.from({ length: 2 + Math.floor(rng() * 4) }, () => ({
-          angle: rng() * Math.PI * 2,
-          distance: radius * (0.75 + rng() * 1.2),
-          radius: 1.6 + rng() * Math.max(3.4, radius * 0.10),
-          stretch: 0.72 + rng() * 0.65,
-        }));
-        const canDrip = impactY < height * 0.78 && (index === 1 || index === 3 || index === 4 || index === 5 || index === 7 || index === 8);
+        const canGravity = impactY < height * 0.79 && [1, 3, 4, 5, 7, 8].includes(index);
 
-        return {
+        const projectile = {
           index,
           launchDelay,
           flightMs,
@@ -213,29 +355,52 @@
           impactX,
           impactY,
           radius,
-          impactBlob,
-          satellites,
           impacted: false,
-          bleedStep: 0,
-          coverageStep: 0,
-          coverMaxRadius: Math.max(width * 0.34, height * 0.255) * (0.91 + rng() * 0.24),
-          drip: canDrip ? {
-            delay: 260 + rng() * 330,
-            buildUp: 120 + rng() * 120,
-            duration: 650 + rng() * 500,
-            gravity: 540 + rng() * 520,
-            baseWidth: 3.5 + rng() * 5.8,
-            drift: (rng() - 0.5) * 52,
-            wave: 4 + rng() * 11,
-            phase: rng() * Math.PI * 2,
-            frequency: 2.1 + rng() * 2.7,
-            lastX: null,
-            lastY: null,
-          } : null,
+          canGravity,
+          satellites: Array.from({ length: 2 + Math.floor(rng() * 4) }, () => ({
+            angle: rng() * Math.PI * 2,
+            distance: radius * (0.75 + rng() * 1.2),
+            radius: 1.6 + rng() * Math.max(3.4, radius * 0.10),
+            stretch: 0.72 + rng() * 0.65,
+          })),
         };
+
+        const impactNode = createMassNode(rng, {
+          id: `i-${index}`,
+          clusterId: `impact-${index}`,
+          x: impactX,
+          y: impactY,
+          radius,
+          sx: 0.96 + rng() * 0.08,
+          sy: 0.98 + rng() * 0.08,
+          startAt: projectile.impactAt,
+          growMs: 135 + rng() * 75,
+        });
+
+        impactNodes.push(impactNode);
+        massNodes.push(impactNode);
+
+        const chain = createGravityChain(rng, projectile, impactNode, index);
+        gravityNodes.push(...chain);
+        massNodes.push(...chain);
+
+        return projectile;
       });
 
-      return { origin, projectiles };
+      const coverageNodes = createCoverageNodes(rng, impactNodes, gravityNodes);
+      massNodes.push(...coverageNodes);
+
+      return {
+        origin,
+        projectiles,
+        massNodes,
+        impactNodes,
+        gravityNodes,
+        coverageNodes,
+        depositedNodes: [],
+        nodeById: new Map(massNodes.map((node) => [node.id, node])),
+        bridgeKeys: new Set(),
+      };
     }
 
     function projectilePosition(projectile, elapsed) {
@@ -249,12 +414,111 @@
       };
     }
 
+    function bridgeKey(a, b) {
+      return a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+    }
+
+    function drawPermanentBridge(a, b, widthScale = 1, alpha = 0.94) {
+      const key = bridgeKey(a, b);
+      if (model.bridgeKeys.has(key)) return;
+      model.bridgeKeys.add(key);
+
+      drawMassBridge(ink, a, b, widthScale * 1.08, 0.055);
+      drawMassBridge(ink, a, b, widthScale, alpha);
+    }
+
+    function connectNearbyMasses(node) {
+      const candidates = [];
+
+      model.depositedNodes.forEach((other) => {
+        if (other.id === node.id) return;
+        const distance = Math.hypot(other.x - node.x, other.y - node.y);
+        const sumRadius = other.radius + node.radius;
+        const sameCluster = other.clusterId === node.clusterId;
+        if (sameCluster) return;
+
+        const reach = sumRadius * 0.78;
+        if (distance <= reach && distance >= sumRadius * 0.34) {
+          candidates.push({ other, distance, sumRadius, sameCluster: false });
+        }
+      });
+
+      candidates
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, MAX_MERGE_CONNECTIONS)
+        .forEach(({ other, distance, sumRadius, sameCluster }) => {
+          const proximity = clamp01(1 - distance / Math.max(sumRadius * 1.22, 1));
+          const widthScale = (sameCluster ? 1.04 : 0.80) + proximity * 0.20;
+          drawPermanentBridge(node, other, widthScale, sameCluster ? 0.96 : 0.91);
+        });
+    }
+
+    function depositMassNode(node, scale = 1) {
+      fillBlob(ink, node, scale * 1.075, 0.045);
+      fillBlob(ink, node, scale, 0.97);
+    }
+
+    function beginMassNode(node) {
+      if (node.deposited) return;
+      node.deposited = true;
+      model.depositedNodes.push(node);
+
+      if (node.parentId && !node.isCoverage) {
+        const parent = model.nodeById.get(node.parentId);
+        if (parent?.deposited) {
+          const distance = Math.hypot(parent.x - node.x, parent.y - node.y);
+          const mergeLimit = (parent.radius + node.radius) * 1.48;
+          if (distance <= mergeLimit) {
+            drawPermanentBridge(parent, node, 1.12, 0.95);
+          }
+        }
+      }
+
+      connectNearbyMasses(node);
+    }
+
+    function updateMassNode(node, elapsed) {
+      const age = elapsed - node.startAt;
+      if (age < 0) return;
+
+      beginMassNode(node);
+
+      const growProgress = clamp01(age / Math.max(node.growMs, 1));
+      const targetGrowStep = Math.min(MASS_GROW_STEPS, Math.floor(growProgress * MASS_GROW_STEPS));
+      while (node.growStep < targetGrowStep) {
+        node.growStep += 1;
+        const local = node.growStep / MASS_GROW_STEPS;
+        const scale = 0.20 + easeOutCubic(local) * 0.80;
+        depositMassNode(node, scale);
+
+        if (node.parentId && node.growStep >= 2) {
+          const parent = model.nodeById.get(node.parentId);
+          if (parent?.deposited) {
+            drawMassBridge(ink, parent, node, Math.min(1, scale * 1.05), 0.20 + local * 0.10);
+          }
+        }
+      }
+
+      const bleedAge = age - node.growMs * 0.72;
+      if (bleedAge <= 0) return;
+
+      const targetBleedStep = Math.min(MASS_BLEED_STEPS, Math.floor(bleedAge / 82));
+      while (node.bleedStep < targetBleedStep) {
+        node.bleedStep += 1;
+        const step = node.bleedStep;
+        fillBlob(ink, node, 1 + step * 0.032, 0.018 + step * 0.0025);
+      }
+    }
+
     function depositImpact(projectile) {
       if (projectile.impacted) return;
       projectile.impacted = true;
 
-      fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, 1.10, 0.045, 1.035);
-      fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, 1, 0.97, 1);
+      const node = model.nodeById.get(`i-${projectile.index}`);
+      if (node) {
+        beginMassNode(node);
+        depositMassNode(node, 0.36);
+      }
 
       projectile.satellites.forEach((satellite) => {
         const x = projectile.impactX + Math.cos(satellite.angle) * satellite.distance;
@@ -262,117 +526,13 @@
         ink.save();
         ink.translate(x, y);
         ink.rotate(satellite.angle);
-        ink.globalAlpha = 0.8;
+        ink.globalAlpha = 0.78;
         ink.fillStyle = INK;
         ink.beginPath();
         ink.ellipse(0, 0, satellite.radius, satellite.radius * satellite.stretch, 0, 0, Math.PI * 2);
         ink.fill();
         ink.restore();
       });
-    }
-
-    function updateBleed(projectile, elapsed) {
-      if (!projectile.impacted) return;
-
-      const age = elapsed - projectile.impactAt;
-      if (age <= 0) return;
-
-      const targetStep = Math.min(10, Math.floor(age / BLEED_STEP_MS));
-      while (projectile.bleedStep < targetStep) {
-        projectile.bleedStep += 1;
-        const step = projectile.bleedStep;
-        const scale = 1 + step * 0.038;
-        const edgeAlpha = 0.012 + step * 0.0014;
-        const coreAlpha = 0.035 + step * 0.003;
-        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale * 1.055, edgeAlpha, 1.035);
-        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale, coreAlpha, 1.01);
-      }
-    }
-
-    function dripPosition(projectile, elapsed) {
-      const drip = projectile.drip;
-      if (!drip) return null;
-
-      const age = elapsed - projectile.impactAt - drip.delay;
-      if (age <= 0) return null;
-
-      const startX = projectile.impactX + (projectile.index % 2 ? -1 : 1) * projectile.radius * 0.08;
-      const startY = projectile.impactY + projectile.radius * 0.34;
-      const build = clamp01(age / drip.buildUp);
-      const movingAge = Math.max(0, age - drip.buildUp);
-      const t = Math.min(movingAge, drip.duration) / 1000;
-      const moving = age >= drip.buildUp;
-      const x = moving
-        ? startX + drip.drift * t + Math.sin(t * drip.frequency * Math.PI + drip.phase) * drip.wave
-        : startX;
-      const y = moving ? startY + 0.5 * drip.gravity * t * t : startY;
-
-      return {
-        x,
-        y,
-        age,
-        build,
-        moving,
-        t,
-        done: movingAge >= drip.duration || y > height + 30,
-      };
-    }
-
-    function updateDrip(projectile, elapsed) {
-      const drip = projectile.drip;
-      if (!drip || !projectile.impacted) return;
-
-      const position = dripPosition(projectile, elapsed);
-      if (!position || !position.moving) return;
-
-      if (drip.lastX === null || drip.lastY === null) {
-        drip.lastX = position.x;
-        drip.lastY = position.y;
-        return;
-      }
-
-      const speedFactor = clamp01(position.t / Math.max(0.35, drip.duration / 1000));
-      const widthNow = drip.baseWidth * (0.94 - speedFactor * 0.22 + Math.sin(position.t * 8 + drip.phase) * 0.08);
-      const midX = (drip.lastX + position.x) / 2 + Math.sin(position.t * 9 + drip.phase) * 1.8;
-      const midY = (drip.lastY + position.y) / 2;
-
-      ink.save();
-      ink.globalAlpha = 0.93;
-      ink.strokeStyle = INK;
-      ink.lineCap = 'round';
-      ink.lineJoin = 'round';
-      ink.lineWidth = Math.max(1.4, widthNow);
-      ink.beginPath();
-      ink.moveTo(drip.lastX, drip.lastY);
-      ink.quadraticCurveTo(midX, midY, position.x, position.y);
-      ink.stroke();
-      ink.restore();
-
-      drip.lastX = position.x;
-      drip.lastY = position.y;
-    }
-
-    function updateCoverage(projectile, elapsed) {
-      if (!projectile.impacted || elapsed < 1080) return;
-
-      const coverageProgress = clamp01((elapsed - 1080) / (COVERED_MS - 1080));
-      const targetStep = Math.min(22, Math.floor(coverageProgress * 22));
-
-      while (projectile.coverageStep < targetStep) {
-        projectile.coverageStep += 1;
-        const local = projectile.coverageStep / 22;
-        const eased = easeInOutCubic(local);
-        const radius = projectile.radius + (projectile.coverMaxRadius - projectile.radius) * eased;
-        const scale = radius / projectile.radius;
-        const alpha = 0.085 + eased * 0.075;
-
-        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale * 1.025, alpha * 0.36, 1.025);
-        fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale, alpha, 1);
-
-        if (local > 0.84) {
-          fillBlob(ink, projectile.impactX, projectile.impactY, projectile.impactBlob, scale * 0.955, 0.19 + eased * 0.14, 1);
-        }
-      }
     }
 
     function drawProjectile(projectile, elapsed) {
@@ -401,37 +561,16 @@
       display.restore();
     }
 
-    function drawDripHead(projectile, elapsed) {
-      const drip = projectile.drip;
-      if (!drip) return;
-      const position = dripPosition(projectile, elapsed);
-      if (!position || position.done) return;
-
-      const ageProgress = clamp01(Math.max(0, position.age - drip.buildUp) / drip.duration);
-      const radius = drip.baseWidth * (0.75 + position.build * 0.75 + ageProgress * 0.45);
-      display.save();
-      display.globalAlpha = 0.95;
-      display.fillStyle = INK;
-      display.beginPath();
-      display.ellipse(position.x, position.y, radius, radius * 1.34, 0, 0, Math.PI * 2);
-      display.fill();
-      display.restore();
-    }
-
     function updatePersistentInk(elapsed) {
       model.projectiles.forEach((projectile) => {
         if (elapsed >= projectile.impactAt) depositImpact(projectile);
-        updateBleed(projectile, elapsed);
-        updateDrip(projectile, elapsed);
-        updateCoverage(projectile, elapsed);
       });
+
+      model.massNodes.forEach((node) => updateMassNode(node, elapsed));
     }
 
     function drawTransient(elapsed) {
-      model.projectiles.forEach((projectile) => {
-        drawProjectile(projectile, elapsed);
-        drawDripHead(projectile, elapsed);
-      });
+      model.projectiles.forEach((projectile) => drawProjectile(projectile, elapsed));
     }
 
     function render(elapsed) {
@@ -463,15 +602,12 @@
     }
 
     function tick(now) {
-      if (![STATES.SPLASH, STATES.BLEED, STATES.COVERAGE].includes(state)) return;
+      if (![STATES.SPLASH, STATES.MERGE, STATES.COVERAGE].includes(state)) return;
 
       const elapsed = now - startedAt;
-      const delta = lastFrameAt ? now - lastFrameAt : 16.7;
-      lastFrameAt = now;
-      void delta;
 
       if (elapsed < SPLASH_MS) state = STATES.SPLASH;
-      else if (elapsed < BLEED_END_MS) state = STATES.BLEED;
+      else if (elapsed < MERGE_END_MS) state = STATES.MERGE;
       else state = STATES.COVERAGE;
 
       render(elapsed);
@@ -504,7 +640,6 @@
 
       state = STATES.SPLASH;
       startedAt = performance.now();
-      lastFrameAt = startedAt;
       frame = requestAnimationFrame(tick);
       return true;
     }
@@ -545,7 +680,6 @@
       frame = 0;
       released = false;
       startedAt = 0;
-      lastFrameAt = 0;
       state = STATES.IDLE;
       model = null;
       canvas.classList.remove('is-releasing', 'is-active');
