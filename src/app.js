@@ -8,8 +8,8 @@ const blackout = document.querySelector('#blackout');
 const completionParticles = document.querySelector('#completionParticles');
 
 const wordmark = document.querySelector('#wordmark');
-const wordmarkMaskStrokes = Array.from(document.querySelectorAll('.wordmark-mask-stroke'));
-const wordmarkDotMask = document.querySelector('#wordmarkDotMask');
+const wordmarkStrokes = Array.from(document.querySelectorAll('.wordmark-stroke'));
+const wordmarkMarks = Array.from(document.querySelectorAll('.wordmark-mark'));
 
 const story = document.querySelector('#story');
 const storyHalo = document.querySelector('#storyHalo');
@@ -28,8 +28,8 @@ const HOLD_DURATION = reducedMotion ? 250 : 1400;
 const PARTICLE_DELAY = reducedMotion ? 0 : 110;
 const BLACKOUT_DURATION = reducedMotion ? 0 : 780;
 const REVEAL_DELAY = reducedMotion ? 0 : 170;
-const HANDWRITING_TARGET_DURATION = 3000;
-const HANDWRITING_START_DELAY = 360;
+const HANDWRITING_TARGET_DURATION = 3400;
+const HANDWRITING_START_DELAY = 340;
 
 let entered = false;
 let scrollFrame = 0;
@@ -41,6 +41,7 @@ let introTimers = [];
 let bloomStemLength = 0;
 let handwritingPrepared = false;
 let handwritingStrokeData = [];
+let handwritingMarkData = [];
 
 bloomStemLength = Math.max(bloomStem.getTotalLength(), 1);
 
@@ -62,7 +63,7 @@ function easeWriting(value) {
 }
 
 function prepareWordmark() {
-  handwritingStrokeData = wordmarkMaskStrokes.map((path) => {
+  handwritingStrokeData = wordmarkStrokes.map((path) => {
     const length = Math.max(path.getTotalLength(), 1);
     const start = Number(path.dataset.start ?? 0);
     const end = Number(path.dataset.end ?? 1);
@@ -73,8 +74,17 @@ function prepareWordmark() {
     return { path, length, start, end };
   });
 
-  wordmarkDotMask.style.opacity = '0';
-  wordmarkDotMask.setAttribute('r', '0');
+  handwritingMarkData = wordmarkMarks.map((mark) => {
+    const start = Number(mark.dataset.start ?? 0);
+    const end = Number(mark.dataset.end ?? 1);
+    const radius = Number(mark.dataset.radius ?? 4.2);
+
+    mark.style.opacity = '0';
+    mark.setAttribute('r', '0');
+
+    return { mark, radius, start, end };
+  });
+
   handwritingPrepared = true;
   wordmark.classList.add('is-prepared');
   playIntroSequence();
@@ -89,14 +99,12 @@ function setHandwritingProgress(progress) {
     path.style.strokeDashoffset = `${length * (1 - local)}`;
   });
 
-  const dotStart = Number(wordmarkDotMask.dataset.start ?? 0.65);
-  const dotEnd = Number(wordmarkDotMask.dataset.end ?? 0.675);
-  const dotRadius = Number(wordmarkDotMask.dataset.radius ?? 10);
-  const dotRange = Math.max(dotEnd - dotStart, 0.001);
-  const dotProgress = easeWriting((globalProgress - dotStart) / dotRange);
-
-  wordmarkDotMask.style.opacity = String(dotProgress);
-  wordmarkDotMask.setAttribute('r', `${dotRadius * dotProgress}`);
+  handwritingMarkData.forEach(({ mark, radius, start, end }) => {
+    const range = Math.max(end - start, 0.001);
+    const local = easeWriting((globalProgress - start) / range);
+    mark.style.opacity = String(local);
+    mark.setAttribute('r', `${radius * local}`);
+  });
 }
 
 function resetHandwritingGeometry() {

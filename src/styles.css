@@ -97,7 +97,7 @@ button { font: inherit; }
 .intro-title {
   position: relative;
   width: 100%;
-  max-width: 700px;
+  max-width: 690px;
   min-width: 0;
   margin: 0 auto;
   line-height: 0;
@@ -114,22 +114,28 @@ button { font: inherit; }
 
 .wordmark.is-prepared { opacity: 1; }
 
-.wordmark-ink,
-.wordmark-outline,
-.wordmark-dot {
-  fill: var(--ink);
-}
-
-.wordmark-mask-stroke {
+.wordmark-lettering {
   fill: none;
-  stroke: #fff;
-  stroke-width: 12;
+  stroke: var(--ink);
+  stroke-width: 7;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.wordmark-mask-dot {
-  fill: #fff;
+.wordmark-stroke {
+  fill: none;
+  stroke: inherit;
+  stroke-width: inherit;
+  stroke-linecap: inherit;
+  stroke-linejoin: inherit;
+}
+
+.wordmark-stroke--secondary {
+  stroke-width: 8.4;
+}
+
+.wordmark-mark {
+  fill: var(--ink);
   opacity: 0;
 }
 
@@ -321,7 +327,7 @@ button { font: inherit; }
     padding-right: max(60px, env(safe-area-inset-right));
     padding-left: max(60px, env(safe-area-inset-left));
   }
-  .intro-title { max-width: 680px; }
+  .intro-title { max-width: 690px; }
   .intro-copy { margin-top: 22px; }
   .intro-orbit--one { left: -22vw; top: -24vw; }
   .intro-orbit--two { right: -24vw; bottom: -31vw; }
@@ -341,8 +347,8 @@ button { font: inherit; }
     transition-duration: .01ms !important;
   }
 
-  .wordmark-mask-stroke { stroke-dashoffset: 0 !important; }
-  .wordmark-mask-dot { opacity: 1 !important; }
+  .wordmark-stroke { stroke-dashoffset: 0 !important; }
+  .wordmark-mark { opacity: 1 !important; }
   .intro-copy-line,
   .enter-button { transform: none; }
 }
