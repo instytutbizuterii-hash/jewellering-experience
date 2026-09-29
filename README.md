@@ -1,6 +1,6 @@
 # Biżufitting Experience
 
-Wersja: **0.1.9**
+Wersja: **0.1.10**
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
@@ -8,18 +8,18 @@ Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie
 
 Projekt jest statyczny. Otwórz `index.html` lokalnie albo opublikuj zawartość katalogu `REPO/` przez GitHub Pages.
 
-## v0.1.9 — Ink Merge / Gravity Refinement
+## v0.1.10 — Continuous Ink Flow
 
-- zachowano CTA hold, perimeter progress, splash flight i impact z v0.1.8,
-- usunięto model dripów `moving head + thin trail`,
-- po impact kropla staje się częścią trwałej masy tuszu,
-- spływanie powstaje przez dokładanie zachodzących na siebie lobes pod istniejącą masą,
-- lokalne połączenia są szerokie i pozostają w persistent ink buffer,
-- sąsiednie obszary łączą się przez wspólną geometrię zamiast poruszających się „główek”,
-- coverage korzysta z tego samego modelu masy, bez globalnego fade do czerni,
-- finalny snap do idealnej czerni występuje dopiero po faktycznym pokryciu ekranu,
-- renderer pozostaje deterministyczny (`seed: 1808`), time-based i ma DPR cap = 2,
-- `hold-cta.js`, wordmark `Biżufitting`, intro, historia oraz restart nie zostały przebudowane.
+- zachowano CTA hold, perimeter progress, splash flight/impact, wordmark, intro, historię i restart z v0.1.9,
+- usunięto skokowe `MASS_GROW_STEPS` i `MASS_BLEED_STEPS`,
+- wzrost plam jest odkładany do persistent buffer według **przebytego dystansu krawędzi**, a nie stałej liczby etapów,
+- gravity flow korzysta z ciągłych trajektorii i distance-based deposition zamiast uruchamianych kolejno segmentów,
+- przepływ ma ciągłą, lekko nieregularną trajektorię bez zależności od FPS,
+- usunięto sztuczne cross-cluster bridge lines; łączenie wynika przede wszystkim z overlap wspólnej masy,
+- regularny coverage 4×4 zastąpiono kilkoma dużymi, nieregularnymi frontami startującymi częściowo poza viewportem,
+- finalny black snap pozostaje wyłącznie technicznym domknięciem po realnym pokryciu ekranu,
+- renderer pozostaje Canvas 2D + persistent buffer + seeded PRNG (`seed: 1808`) + DPR cap 2,
+- bez `Math.random()` w render loop i bez per-pixel full-screen processing.
 
 ## Struktura
 
