@@ -1,6 +1,6 @@
 # Biżufitting Experience
 
-Wersja: **0.1.17**
+Wersja: **0.1.18**
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
@@ -8,16 +8,14 @@ Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie
 
 Projekt jest statyczny. Publikuj zawartość katalogu `REPO/` przez GitHub Pages / zwykły hosting statyczny.
 
-## v0.1.17 — CTA → Matte Continuity
+## v0.1.18 — Intro Ink Language
 
-- usunięto poprzedni pill / pulse / halo CTA,
-- CTA jest lekką typografią z ręcznie rysowaną kreską,
-- 2-sekundowy HOLD steruje 60-klatkowym początkiem matte,
-- COMMIT nie restartuje efektu: po HOLD przechodzimy bezpośrednio do pełnej klatki 8,
-- dalsze 50 klatek używa niezmienionych czterech atlasów matte z v0.1.13,
-- cancel cofa prelude zamiast gwałtownie usuwać plamę,
-- origin tuszu ma osobny anchor i nie zależy od środka prostokąta buttona,
-- `HISTORIA / 01` i dalszy story pozostają bez zmian.
+- usunięto dekoracyjne okręgi `intro-orbit` i okrągłe rozświetlenie z prawego górnego obszaru intro,
+- dodano dwa statyczne, organiczne ślady tuszu w górnych narożnikach,
+- ślady pochodzą bezpośrednio z wczesnych klatek tego samego `ink-hold-atlas.png`, który reaguje podczas HOLD,
+- dekoracje są osobnymi lekkimi PNG z przezroczystością i nie są powiązane z rendererem HOLD,
+- CTA → HOLD → matte → blackout z v0.1.17 pozostaje bez zmian,
+- `HISTORIA / 01` i dalszy story pozostają poza zakresem tej wersji.
 
 ## Struktura
 
@@ -28,6 +26,9 @@ REPO/
 ├── README.md
 ├── VERSION
 ├── assets/
+│   ├── ink-decor/
+│   │   ├── intro-ink-left.png
+│   │   └── intro-ink-right.png
 │   ├── ink-prelude/
 │   │   └── ink-hold-atlas.png
 │   └── ink-sprite/
