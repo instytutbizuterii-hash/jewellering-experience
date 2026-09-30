@@ -5,7 +5,7 @@ const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
 const restartButton = document.querySelector('#restartButton');
 const blackout = document.querySelector('#blackout');
-const matteVideo = document.querySelector('#inkMatte');
+const matteSprite = document.querySelector('#inkMatte');
 const matteFallback = document.querySelector('#matteFallback');
 
 const wordmark = document.querySelector('#wordmark');
@@ -215,7 +215,7 @@ function revealHistoryOpening() {
 }
 
 const matteTransition = window.createMatteTransition({
-  video: matteVideo,
+  spriteRoot: matteSprite,
   fallback: matteFallback,
   reducedMotion,
   nearBlackAt: 1.40,

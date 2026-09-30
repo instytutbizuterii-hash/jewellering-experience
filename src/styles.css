@@ -264,6 +264,7 @@ button { font: inherit; }
 }
 
 /* NARRATIVE INK MATTE */
+/* NARRATIVE INK MATTE */
 .ink-matte {
   position: fixed;
   z-index: 70;
@@ -271,7 +272,6 @@ button { font: inherit; }
   top: 0;
   width: 1px;
   height: 1px;
-  object-fit: fill;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -279,13 +279,22 @@ button { font: inherit; }
   transform-origin: center;
   background: #fff;
   mix-blend-mode: multiply;
+  overflow: hidden;
+}
+
+.ink-matte__stage {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: 0% 0%;
+  background-size: 500% 300%;
+  background-color: #fff;
 }
 
 .ink-matte.is-active {
   opacity: 1;
   visibility: visible;
 }
-
 .matte-fallback {
   --matte-fallback-ms: 920ms;
   position: fixed;

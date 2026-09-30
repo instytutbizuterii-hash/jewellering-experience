@@ -8,11 +8,62 @@
     DONE: 'DONE',
   });
 
-  const clamp01 = (value) => Math.max(0, Math.min(1, value));
+  function createSpritePlayer(root) {
+    const stage = root?.querySelector('[data-ink-stage]');
+    const fps = Number(root?.dataset.fps ?? 30);
+    const frameCount = Number(root?.dataset.frameCount ?? 57);
+    const framesPerAtlas = Number(root?.dataset.framesPerAtlas ?? 15);
+    const atlasColumns = Number(root?.dataset.atlasColumns ?? 5);
+    const atlasRows = Number(root?.dataset.atlasRows ?? 3);
+    const atlasBase = String(root?.dataset.atlasBase ?? '');
+    const atlasCount = Number(root?.dataset.atlasCount ?? 0);
+    const atlasPaths = Array.from({ length: atlasCount }, (_, index) => `${atlasBase}${index + 1}.png`);
+    let loadPromise = null;
+
+    function showFrame(frameIndex) {
+      if (!stage || !atlasPaths.length) return;
+      const safeIndex = Math.max(0, Math.min(frameCount - 1, frameIndex));
+      const atlasIndex = Math.min(Math.floor(safeIndex / framesPerAtlas), atlasPaths.length - 1);
+      const atlasFrameIndex = safeIndex - atlasIndex * framesPerAtlas;
+      const col = atlasFrameIndex % atlasColumns;
+      const row = Math.floor(atlasFrameIndex / atlasColumns);
+      const x = atlasColumns > 1 ? (col / (atlasColumns - 1)) * 100 : 0;
+      const y = atlasRows > 1 ? (row / (atlasRows - 1)) * 100 : 0;
+
+      stage.style.backgroundImage = `url('${atlasPaths[atlasIndex]}')`;
+      stage.style.backgroundSize = `${atlasColumns * 100}% ${atlasRows * 100}%`;
+      stage.style.backgroundPosition = `${x}% ${y}%`;
+      stage.dataset.frame = String(safeIndex + 1);
+    }
+
+    function preload() {
+      if (loadPromise) return loadPromise;
+      loadPromise = Promise.all(
+        atlasPaths.map((src) => new Promise((resolve, reject) => {
+          const image = new Image();
+          image.decoding = 'async';
+          image.onload = () => resolve(src);
+          image.onerror = () => reject(new Error(`Failed to load atlas: ${src}`));
+          image.src = src;
+        })),
+      );
+      return loadPromise;
+    }
+
+    return {
+      fps,
+      frameCount,
+      preload,
+      reset() {
+        showFrame(0);
+      },
+      showFrame,
+    };
+  }
 
   function createMatteTransition(options) {
     const {
-      video,
+      spriteRoot,
       fallback,
       reducedMotion = false,
       nearBlackAt = 1.36,
@@ -21,11 +72,11 @@
       onDone = () => {},
     } = options;
 
-    if (!video) throw new Error('MatteTransition requires a video element.');
+    if (!spriteRoot) throw new Error('MatteTransition requires a spriteRoot element.');
 
+    const spritePlayer = createSpritePlayer(spriteRoot);
     let state = STATES.IDLE;
-    let frame = 0;
-    let videoFrameHandle = 0;
+    let rafHandle = 0;
     let fallbackNearTimer = 0;
     let fallbackDoneTimer = 0;
     let nearBlackFired = false;
@@ -38,10 +89,7 @@
         [0, window.innerHeight],
         [window.innerWidth, window.innerHeight],
       ];
-
-      return Math.max(
-        ...corners.map(([x, y]) => Math.hypot(x - origin.x, y - origin.y)),
-      );
+      return Math.max(...corners.map(([x, y]) => Math.hypot(x - origin.x, y - origin.y)));
     }
 
     function positionLayer(layer, origin, overscan = 1.08) {
@@ -59,56 +107,9 @@
       onNearBlack();
     }
 
-    function cancelMonitoring() {
-      cancelAnimationFrame(frame);
-      frame = 0;
-
-      if (videoFrameHandle && typeof video.cancelVideoFrameCallback === 'function') {
-        try {
-          video.cancelVideoFrameCallback(videoFrameHandle);
-        } catch (_) {
-          // Browser may have already released the callback.
-        }
-      }
-      videoFrameHandle = 0;
-    }
-
-    function monitorWithRaf(activeRunId) {
-      if (activeRunId !== runId || state !== STATES.PLAYING) return;
-      if (video.currentTime >= nearBlackAt) fireNearBlack();
-      if (!video.ended) frame = requestAnimationFrame(() => monitorWithRaf(activeRunId));
-    }
-
-    function monitorWithVideoFrames(activeRunId) {
-      if (activeRunId !== runId || state !== STATES.PLAYING) return;
-
-      const callback = (_, metadata) => {
-        if (activeRunId !== runId || state !== STATES.PLAYING) return;
-        const mediaTime = Number(metadata?.mediaTime ?? video.currentTime);
-        if (mediaTime >= nearBlackAt) fireNearBlack();
-        if (!video.ended) videoFrameHandle = video.requestVideoFrameCallback(callback);
-      };
-
-      videoFrameHandle = video.requestVideoFrameCallback(callback);
-    }
-
-    function startMonitoring(activeRunId) {
-      cancelMonitoring();
-      if (typeof video.requestVideoFrameCallback === 'function') {
-        monitorWithVideoFrames(activeRunId);
-      } else {
-        frame = requestAnimationFrame(() => monitorWithRaf(activeRunId));
-      }
-    }
-
-    function finishVideo(activeRunId) {
-      if (activeRunId !== runId || state !== STATES.PLAYING) return;
-      fireNearBlack();
-      cancelMonitoring();
-      video.pause();
-      video.classList.remove('is-active');
-      state = STATES.DONE;
-      onDone();
+    function cancelPlayback() {
+      cancelAnimationFrame(rafHandle);
+      rafHandle = 0;
     }
 
     function clearFallbackTimers() {
@@ -118,12 +119,19 @@
       fallbackDoneTimer = 0;
     }
 
-    function startFallback(origin, activeRunId) {
-      cancelMonitoring();
-      clearFallbackTimers();
-      video.pause();
-      video.classList.remove('is-active');
+    function finish(activeRunId) {
+      if (activeRunId !== runId || state !== STATES.PLAYING) return;
+      fireNearBlack();
+      cancelPlayback();
+      spriteRoot.classList.remove('is-active');
+      state = STATES.DONE;
+      onDone();
+    }
 
+    function startFallback(origin, activeRunId) {
+      cancelPlayback();
+      clearFallbackTimers();
+      spriteRoot.classList.remove('is-active');
       state = STATES.FALLBACK;
       positionLayer(fallback, origin, 1.10);
 
@@ -168,62 +176,56 @@
       }
 
       state = STATES.PLAYING;
-      positionLayer(video, origin);
+      positionLayer(spriteRoot, origin);
+      spritePlayer.reset();
+      spriteRoot.classList.add('is-active');
 
       try {
-        video.pause();
-        video.currentTime = 0;
+        await spritePlayer.preload();
       } catch (_) {
-        // Some engines disallow seeking before metadata; play() below remains the source of truth.
-      }
-
-      video.classList.add('is-active');
-
-      const handleEnded = () => {
-        video.removeEventListener('ended', handleEnded);
-        finishVideo(activeRunId);
-      };
-      video.addEventListener('ended', handleEnded);
-
-      try {
-        const playPromise = video.play();
-        if (playPromise && typeof playPromise.then === 'function') await playPromise;
-        if (activeRunId !== runId || state !== STATES.PLAYING) return false;
-        startMonitoring(activeRunId);
-        return true;
-      } catch (_) {
-        video.removeEventListener('ended', handleEnded);
         if (activeRunId !== runId) return false;
         startFallback(origin, activeRunId);
         return false;
       }
+
+      const durationMs = (spritePlayer.frameCount / spritePlayer.fps) * 1000;
+      const startedAt = performance.now();
+
+      const tick = (now) => {
+        if (activeRunId !== runId || state !== STATES.PLAYING) return;
+
+        const elapsed = Math.max(0, now - startedAt);
+        const frame = Math.min(spritePlayer.frameCount - 1, Math.floor((elapsed / 1000) * spritePlayer.fps));
+        const seconds = frame / spritePlayer.fps;
+        spritePlayer.showFrame(frame);
+
+        if (seconds >= nearBlackAt) fireNearBlack();
+
+        if (elapsed < durationMs) {
+          rafHandle = requestAnimationFrame(tick);
+          return;
+        }
+
+        finish(activeRunId);
+      };
+
+      rafHandle = requestAnimationFrame(tick);
+      return true;
     }
 
     function reset() {
       runId += 1;
-      cancelMonitoring();
+      cancelPlayback();
       clearFallbackTimers();
       nearBlackFired = false;
-
-      video.pause();
-      video.classList.remove('is-active');
-      try {
-        video.currentTime = 0;
-      } catch (_) {
-        // No-op when metadata has not loaded yet.
-      }
-
+      spriteRoot.classList.remove('is-active');
+      spritePlayer.reset();
       if (fallback) fallback.classList.remove('is-active');
       state = STATES.IDLE;
     }
 
-    // Preload early while the handwriting / intro copy is playing.
-    if (video.preload !== 'auto') video.preload = 'auto';
-    try {
-      video.load();
-    } catch (_) {
-      // Browsers may ignore explicit load() in constrained data-saving modes.
-    }
+    spritePlayer.preload().catch(() => {});
+    spritePlayer.reset();
 
     return {
       start,
