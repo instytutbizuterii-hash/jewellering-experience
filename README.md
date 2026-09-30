@@ -1,12 +1,20 @@
 # Biżufitting Experience
 
-Wersja: **0.1.15**
+Wersja: **0.1.16**
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
 ## Uruchomienie
 
 Projekt jest statyczny. Otwórz `index.html` lokalnie albo opublikuj zawartość katalogu `REPO/` przez GitHub Pages.
+
+## v0.1.16 — CTA Hold Outline + Denser Pulse
+
+- przywrócono cienki, stały obrys CTA,
+- puls zwolniono do 2000 ms i ustawiono jako trzy narastające wyjścia z dwoma częściowymi powrotami,
+- blur został ograniczony, a czerń zagęszczona bliżej CTA,
+- ostatni impuls nadal przechodzi bezpośrednio w start tuszu,
+- sprite matte i dalsza historia pozostają bez zmian.
 
 ## v0.1.15 — CTA Hold Soft Pulse Refinement
 

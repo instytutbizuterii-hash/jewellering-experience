@@ -169,20 +169,19 @@ button { font: inherit; }
 
 .enter-button {
   --hold-scale: 1;
-  --hold-halo-inset: -4px;
+  --hold-halo-inset: -2px;
   --hold-halo-opacity: 0;
-  --hold-halo-scale: 1;
-  --hold-halo-blur: 3.5px;
-  --hold-halo-tight-blur: 1.8px;
-  --hold-inner-inset: 3px;
-  --hold-inner-opacity: 0;
+  --hold-halo-blur: 1.35px;
+  --hold-core-inset: -1px;
+  --hold-core-opacity: 0;
+  --hold-core-blur: .65px;
   position: relative;
   display: inline-grid;
   min-width: 250px;
   place-items: center;
   margin-top: 48px;
   padding: 18px 27px;
-  border-color: transparent;
+  border-color: rgba(18,18,18,.56);
   color: var(--ink);
   font-size: .67rem;
   font-weight: 500;
@@ -204,44 +203,42 @@ button { font: inherit; }
   pointer-events: auto;
 }
 
-/* Primary pulse: soft black ring with deliberately blurred edges. */
+/* Moving pulse: dense black near the CTA, with only a short soft falloff. */
 .enter-button::before {
   content: '';
   position: absolute;
   z-index: -2;
   inset: var(--hold-halo-inset);
-  border: 3px solid rgba(18,18,18,.78);
+  border: 4px solid rgba(18,18,18,.98);
   border-radius: inherit;
   opacity: var(--hold-halo-opacity);
-  transform: scale(var(--hold-halo-scale));
   filter: blur(var(--hold-halo-blur));
-  box-shadow: 0 0 8px rgba(18,18,18,.18);
   pointer-events: none;
-  will-change: inset, opacity, transform, filter;
+  will-change: inset, opacity, filter;
 }
 
-/* Secondary soft body keeps the pulse dense near the CTA without a sharp outline. */
+/* Tight black core prevents the pulse from turning into a wide grey cloud. */
 .enter-button::after {
   content: '';
   position: absolute;
   z-index: -1;
-  inset: var(--hold-inner-inset);
-  border: 5px solid rgba(18,18,18,.34);
+  inset: var(--hold-core-inset);
+  border: 2px solid rgba(18,18,18,.96);
   border-radius: inherit;
-  opacity: var(--hold-inner-opacity);
-  filter: blur(var(--hold-halo-tight-blur));
+  opacity: var(--hold-core-opacity);
+  filter: blur(var(--hold-core-blur));
   pointer-events: none;
   will-change: inset, opacity, filter;
 }
 
 .enter-button.is-holding {
-  border-color: transparent;
-  transition: opacity .58s ease;
+  border-color: rgba(18,18,18,.66);
+  transition: opacity .58s ease, border-color .18s ease;
   will-change: transform;
 }
 
 .enter-button.is-committed {
-  border-color: transparent;
+  border-color: rgba(18,18,18,.68);
   pointer-events: none;
 }
 
