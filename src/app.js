@@ -3,6 +3,8 @@ const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const intro = document.querySelector('#intro');
 const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
+const holdInkOrigin = document.querySelector('#holdInkOrigin');
+const themeColor = document.querySelector('meta[name="theme-color"]');
 const restartButton = document.querySelector('#restartButton');
 const blackout = document.querySelector('#blackout');
 const matteSprite = document.querySelector('#inkMatte');
@@ -108,10 +110,17 @@ function resetHandwritingGeometry() {
   setHandwritingProgress(0);
 }
 
+function revealCTAWhenReady(runId) {
+  matteTransition.ready().then(() => {
+    if (runId !== introRunId || entered) return;
+    intro.classList.add('is-cta-visible');
+  });
+}
+
 function revealIntroCopy(runId) {
   scheduleIntro(() => intro.classList.add('is-copy-one-visible'), 260, runId);
   scheduleIntro(() => intro.classList.add('is-copy-two-visible'), 760, runId);
-  scheduleIntro(() => intro.classList.add('is-cta-visible'), 1370, runId);
+  scheduleIntro(() => revealCTAWhenReady(runId), 1370, runId);
 }
 
 function finishHandwriting(runId) {
@@ -184,6 +193,7 @@ function prepareForNarrativeTransition() {
   clearOpeningTimers();
   introRunId += 1;
   document.body.classList.add('is-transitioning');
+  if (themeColor) themeColor.setAttribute('content', '#0c0c0d');
 }
 
 function mountHistoryUnderMatte() {
@@ -218,18 +228,26 @@ const matteTransition = window.createMatteTransition({
   spriteRoot: matteSprite,
   fallback: matteFallback,
   reducedMotion,
-  nearBlackAt: 1.40,
   onNearBlack: mountHistoryUnderMatte,
   onDone: revealHistoryOpening,
 });
 
 const holdCTA = window.createHoldCTA({
   trigger: enterButton,
+  originTarget: holdInkOrigin,
   reducedMotion,
-  canStart: () => !entered && intro.classList.contains('is-cta-visible'),
+  canStart: () => (
+    !entered
+    && intro.classList.contains('is-cta-visible')
+    && (reducedMotion || matteTransition.isReady())
+    && matteTransition.getState() === matteTransition.states.IDLE
+  ),
+  onStart: (origin) => matteTransition.beginPrelude(origin),
+  onProgress: (progress) => matteTransition.setPreludeProgress(progress),
+  onCancel: () => matteTransition.cancelPrelude(),
   onCommit: (origin) => {
     prepareForNarrativeTransition();
-    matteTransition.start(origin);
+    matteTransition.commit(origin);
   },
 });
 
@@ -242,6 +260,7 @@ function restartExperience() {
     experience.hidden = true;
     intro.hidden = false;
     document.body.classList.remove('experience-started', 'is-transitioning');
+    if (themeColor) themeColor.setAttribute('content', '#eee7e1');
     entered = false;
     matteTransition.reset();
     holdCTA.reset();

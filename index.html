@@ -43,11 +43,16 @@
 
       <button class="enter-button hold-button" id="enterButton" type="button" aria-label="Przytrzymaj, aby odkryć Biżufitting" aria-disabled="false">
         <span class="hold-button-label">PRZYTRZYMAJ, ABY ODKRYĆ</span>
+        <svg class="hold-button-stroke" viewBox="0 0 260 18" aria-hidden="true" focusable="false">
+          <path d="M5 9 C48 7.2 91 10.8 132 9.1 C177 7.2 216 10.1 255 8.4" />
+        </svg>
+        <span class="hold-ink-origin" id="holdInkOrigin" data-ink-origin aria-hidden="true"></span>
       </button>
     </div>
   </section>
 
-  <div class="ink-matte" id="inkMatte" data-frame-count="57" data-fps="30" data-frames-per-atlas="15" data-atlas-columns="5" data-atlas-rows="3" data-atlas-base="./assets/ink-sprite/ink-matte-atlas-" data-atlas-count="4" aria-hidden="true">
+  <div class="ink-matte" id="inkMatte" data-frame-count="57" data-fps="30" data-continuation-start-frame="7" data-near-black-index="42" data-frames-per-atlas="15" data-atlas-columns="5" data-atlas-rows="3" data-atlas-base="./assets/ink-sprite/ink-matte-atlas-" data-atlas-count="4" data-prelude-frame-count="60" data-prelude-columns="10" data-prelude-rows="6" data-prelude-crop-ratio="0.2844444444" data-prelude-src="./assets/ink-prelude/ink-hold-atlas.png" aria-hidden="true">
+    <div class="ink-matte__prelude" data-ink-prelude-stage></div>
     <div class="ink-matte__stage" data-ink-stage></div>
   </div>
   <div class="matte-fallback" id="matteFallback" aria-hidden="true"></div>
