@@ -50,6 +50,7 @@ button { font: inherit; }
 
 .grain {
   position: absolute;
+  z-index: 2;
   inset: -50%;
   opacity: .17;
   pointer-events: none;
@@ -65,31 +66,37 @@ button { font: inherit; }
   100% { transform: translate3d(-2%,1%,0); }
 }
 
-.intro-ink-mark {
+.intro::before,
+.intro::after {
+  content: "";
   position: absolute;
   z-index: 1;
   display: block;
-  height: auto;
+  width: clamp(184px,49vw,236px);
+  aspect-ratio: 1;
   pointer-events: none;
-  user-select: none;
-  -webkit-user-select: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   mix-blend-mode: multiply;
+  transform-origin: 50% 50%;
 }
 
-.intro-ink-mark--left {
-  top: -34px;
-  left: -48px;
-  width: clamp(142px,38vw,190px);
+.intro::before {
+  top: -56px;
+  left: -56px;
   opacity: .16;
-  transform: rotate(-13deg);
+  background-image: url("../assets/ink-decor/intro-ink-left-v0.1.19.png");
+  transform: rotate(-31deg);
 }
 
-.intro-ink-mark--right {
-  top: -31px;
-  right: -54px;
-  width: clamp(154px,41vw,208px);
+.intro::after {
+  top: -68px;
+  right: -62px;
+  width: clamp(202px,54vw,262px);
   opacity: .12;
-  transform: rotate(17deg);
+  background-image: url("../assets/ink-decor/intro-ink-right-v0.1.19.png");
+  transform: rotate(39deg);
 }
 
 .intro-content {
@@ -412,8 +419,8 @@ button { font: inherit; }
   }
   .intro-title { max-width: 690px; }
   .intro-copy { margin-top: 22px; }
-  .intro-ink-mark--left { top: -58px; left: -72px; width: 246px; }
-  .intro-ink-mark--right { top: -52px; right: -82px; width: 276px; }
+  .intro::before { top: -92px; left: -86px; width: 286px; }
+  .intro::after { top: -108px; right: -96px; width: 318px; }
   .story-copy { bottom: 8vh; }
 }
 

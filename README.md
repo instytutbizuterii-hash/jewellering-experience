@@ -1,6 +1,6 @@
 # Biżufitting Experience
 
-Wersja: **0.1.18**
+Wersja: **0.1.19**
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
@@ -8,13 +8,14 @@ Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie
 
 Projekt jest statyczny. Publikuj zawartość katalogu `REPO/` przez GitHub Pages / zwykły hosting statyczny.
 
-## v0.1.18 — Intro Ink Language
+## v0.1.19 — Intro Ink Decor / Cache Safety
 
-- usunięto dekoracyjne okręgi `intro-orbit` i okrągłe rozświetlenie z prawego górnego obszaru intro,
-- dodano dwa statyczne, organiczne ślady tuszu w górnych narożnikach,
-- ślady pochodzą bezpośrednio z wczesnych klatek tego samego `ink-hold-atlas.png`, który reaguje podczas HOLD,
-- dekoracje są osobnymi lekkimi PNG z przezroczystością i nie są powiązane z rendererem HOLD,
-- CTA → HOLD → matte → blackout z v0.1.17 pozostaje bez zmian,
+- odrzucono duet dekoracji v0.1.18 oparty na frame 18 + 25,
+- nowe narożniki pochodzą z frame 37 i frame 56 `ink-hold-atlas.png`,
+- dekoracje nie są elementami HTML; renderują się przez `.intro::before` / `.intro::after`,
+- nowe PNG mają wersjonowane nazwy,
+- lokalny CSS i JS są linkowane z `?v=0.1.19`,
+- CTA → HOLD → matte → blackout pozostaje bez zmian,
 - `HISTORIA / 01` i dalszy story pozostają poza zakresem tej wersji.
 
 ## Struktura
@@ -27,8 +28,8 @@ REPO/
 ├── VERSION
 ├── assets/
 │   ├── ink-decor/
-│   │   ├── intro-ink-left.png
-│   │   └── intro-ink-right.png
+│   │   ├── intro-ink-left-v0.1.19.png
+│   │   └── intro-ink-right-v0.1.19.png
 │   ├── ink-prelude/
 │   │   └── ink-hold-atlas.png
 │   └── ink-sprite/
@@ -42,5 +43,3 @@ REPO/
     ├── matte-transition.js
     └── styles.css
 ```
-
-Dokumentacja, QA i historia znajdują się wyłącznie w `Outside_REPO/` paczki wydaniowej.
