@@ -31,7 +31,36 @@
 
     function setProgress(value) {
       const progress = clamp01(value);
+      const pulseCycle = progress * 3.5;
+      const pulsePhase = pulseCycle - Math.floor(pulseCycle);
+      const pulse = reducedMotion ? 0 : Math.sin(Math.PI * pulsePhase);
+      const pulseStrength = reducedMotion ? 0 : pulse * (0.34 + progress * 0.66);
+
+      const scale = 1 + progress * 0.004 + pulseStrength * 0.014;
+      const haloInset = -(7 + progress * 5 + pulseStrength * 8);
+      const haloOpacity = Math.min(0.92, progress * 0.34 + pulseStrength * 0.56);
+      const haloScale = 1 + progress * 0.012 + pulseStrength * 0.025;
+      const haloBlur = 10 + progress * 12 + pulseStrength * 18;
+      const haloTightBlur = 3 + pulseStrength * 5;
+      const innerInset = 5 - pulseStrength * 1.5;
+      const innerOpacity = Math.min(1, 0.72 + progress * 0.18 + pulseStrength * 0.10);
+      const strokeWidth = 2.35 + progress * 0.75;
+      const strokeOpacity = 0.72 + progress * 0.28;
+
       trigger.style.setProperty('--hold-progress', progress.toFixed(4));
+      trigger.style.setProperty('--hold-growth', progress.toFixed(4));
+      trigger.style.setProperty('--hold-pulse', pulseStrength.toFixed(4));
+      trigger.style.setProperty('--hold-scale', scale.toFixed(4));
+      trigger.style.setProperty('--hold-halo-inset', `${haloInset.toFixed(2)}px`);
+      trigger.style.setProperty('--hold-halo-opacity', haloOpacity.toFixed(4));
+      trigger.style.setProperty('--hold-halo-scale', haloScale.toFixed(4));
+      trigger.style.setProperty('--hold-halo-blur', `${haloBlur.toFixed(2)}px`);
+      trigger.style.setProperty('--hold-halo-tight-blur', `${haloTightBlur.toFixed(2)}px`);
+      trigger.style.setProperty('--hold-inner-inset', `${innerInset.toFixed(2)}px`);
+      trigger.style.setProperty('--hold-inner-opacity', innerOpacity.toFixed(4));
+      trigger.style.setProperty('--hold-stroke-width', `${strokeWidth.toFixed(2)}px`);
+      trigger.style.setProperty('--hold-stroke-opacity', strokeOpacity.toFixed(4));
+
       progressPaths.forEach((path) => {
         path.style.strokeDashoffset = String(1 - progress);
       });
