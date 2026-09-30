@@ -1,12 +1,23 @@
 # Biżufitting Experience
 
-Wersja: **0.1.14**
+Wersja: **0.1.15**
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
 ## Uruchomienie
 
 Projekt jest statyczny. Otwórz `index.html` lokalnie albo opublikuj zawartość katalogu `REPO/` przez GitHub Pages.
+
+## v0.1.15 — CTA Hold Soft Pulse Refinement
+
+- spowolniono hold z **1280 ms do 1800 ms**,
+- zamiast szybkich 3.5 cyklu zastosowano **3 spokojniejsze narastające wyjścia** z ostatnim maksimum przy commit,
+- usunięto ostry czarny obrys CTA podczas hold,
+- usunięto rysowany SVG progress-outline; feedback hold jest teraz wyłącznie miękką pulsacją,
+- puls jest czarny, ale renderowany przez rozmyte warstwy z `filter: blur(...)`, więc nie ma ostrych krawędzi,
+- kolejne wyjścia pulsu mają większy zasięg i większą gęstość,
+- samo CTA skaluje się tylko minimalnie; główny ruch odbywa się w rozmytym halo,
+- transition sprite z v0.1.13 pozostaje bez zmian.
 
 ## v0.1.14 — CTA Hold Pulse Refinement
 
