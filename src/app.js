@@ -3,7 +3,6 @@ const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const intro = document.querySelector('#intro');
 const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
-const holdInkOrigin = document.querySelector('#holdInkOrigin');
 const themeColor = document.querySelector('meta[name="theme-color"]');
 const restartButton = document.querySelector('#restartButton');
 const blackout = document.querySelector('#blackout');
@@ -156,16 +155,25 @@ function playIntroSequence() {
   const runId = introRunId;
   clearIntroTimers();
 
-  intro.classList.remove('is-copy-one-visible', 'is-copy-two-visible', 'is-cta-visible');
+  intro.classList.remove(
+    'is-copy-one-visible',
+    'is-copy-two-visible',
+    'is-cta-visible',
+    'is-ink-growing',
+    'is-ink-hold-active',
+  );
   resetHandwritingGeometry();
 
   if (reducedMotion) {
     setHandwritingProgress(1);
-    intro.classList.add('is-copy-one-visible', 'is-copy-two-visible', 'is-cta-visible');
+    intro.classList.add('is-ink-growing', 'is-copy-one-visible', 'is-copy-two-visible', 'is-cta-visible');
     return;
   }
 
-  scheduleIntro(() => animateHandwriting(runId), HANDWRITING_START_DELAY, runId);
+  scheduleIntro(() => {
+    intro.classList.add('is-ink-growing');
+    animateHandwriting(runId);
+  }, HANDWRITING_START_DELAY, runId);
 }
 
 function clearOpeningTimers() {
@@ -230,24 +238,32 @@ const matteTransition = window.createMatteTransition({
   reducedMotion,
   onNearBlack: mountHistoryUnderMatte,
   onDone: revealHistoryOpening,
+  onPreludeIdle: () => intro.classList.remove('is-ink-hold-active'),
 });
 
 const holdCTA = window.createHoldCTA({
   trigger: enterButton,
-  originTarget: holdInkOrigin,
   reducedMotion,
   canStart: () => (
     !entered
     && intro.classList.contains('is-cta-visible')
     && (reducedMotion || matteTransition.isReady())
-    && matteTransition.getState() === matteTransition.states.IDLE
+    && (
+      matteTransition.getState() === matteTransition.states.IDLE
+      || (reducedMotion && matteTransition.getState() === matteTransition.states.LOADING)
+    )
   ),
-  onStart: (origin) => matteTransition.beginPrelude(origin),
+  onStart: () => {
+    intro.classList.add('is-ink-hold-active');
+    const started = matteTransition.beginPrelude();
+    if (!started) intro.classList.remove('is-ink-hold-active');
+    return started;
+  },
   onProgress: (progress) => matteTransition.setPreludeProgress(progress),
   onCancel: () => matteTransition.cancelPrelude(),
-  onCommit: (origin) => {
+  onCommit: () => {
     prepareForNarrativeTransition();
-    matteTransition.commit(origin);
+    matteTransition.commit();
   },
 });
 

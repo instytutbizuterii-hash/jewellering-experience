@@ -1,6 +1,6 @@
 # Biżufitting Experience
 
-Wersja: **0.1.19.1**
+Wersja: **0.1.20**
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
@@ -8,16 +8,21 @@ Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie
 
 Projekt jest statyczny. Publikuj zawartość katalogu `REPO/` przez GitHub Pages / zwykły hosting statyczny.
 
-## v0.1.19.1 — Intro Ink Decor Position + Black Ink
+## v0.1.20 — Dual-source ink story
 
-- baza: `v0.1.19`,
-- zachowano assety dekoracji z frame 37 i frame 56 `ink-hold-atlas.png`,
-- lewa plama pozostaje w lewym górnym obszarze, ale prawa wraca do **prawego dolnego obszaru** zgodnie z układem oryginalnych orbitów z `v0.1.16`,
-- usunięto dodatkowe globalne `opacity` z dekoracji; plamy są renderowane jako czarne z naturalną alfą wynikającą z PNG,
-- nowe PNG mają wersjonowane nazwy `*-v0.1.19.1.png`,
-- lokalny CSS i JS są linkowane z `?v=0.1.19.1`,
-- CTA → HOLD → matte → blackout pozostaje bez zmian,
-- `HISTORIA / 01` i dalszy story pozostają poza zakresem tej wersji.
+- baza: `v0.1.19.1`,
+- plamy intro startują w skali `0.88` i przez ok. `4.7 s` bardzo powoli rosną do obecnej skali 1.0,
+- wzrost startuje razem z handwritingiem; przy typowym preloadzie kończy się tuż przed pojawieniem CTA,
+- CTA nadal jest triggerem HOLD, ale nie jest już geometrycznym originem obrazu,
+- podczas HOLD statyczne plamy są bezszwowo zastępowane ich dynamicznymi kopiami,
+- lewa plama z lewego górnego i prawa z prawego dolnego obszaru poruszają się do środka viewportu,
+- od `42%` HOLD w środku zaczyna rozwijać się istniejący 60-klatkowy prelude,
+- około końcówki HOLD źródła są absorbowane przez centralną masę tuszu,
+- `100% HOLD` kończy się na prelude frame 60, a COMMIT kontynuuje istniejący full matte bez resetu,
+- cancel przewija całą dwupunktową choreografię z powrotem,
+- restart ponownie uruchamia powolny wzrost plam intro,
+- `hold-cta.js` i wszystkie atlasy pozostały niezmienione,
+- copy i dalsza `HISTORIA / 01` pozostają poza zakresem tej wersji.
 
 ## Struktura
 
@@ -29,8 +34,8 @@ REPO/
 ├── VERSION
 ├── assets/
 │   ├── ink-decor/
-│   │   ├── intro-ink-left-v0.1.19.1.png
-│   │   └── intro-ink-right-v0.1.19.1.png
+│   │   ├── intro-ink-left-v0.1.20.png
+│   │   └── intro-ink-right-v0.1.20.png
 │   ├── ink-prelude/
 │   │   └── ink-hold-atlas.png
 │   └── ink-sprite/

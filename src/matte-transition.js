@@ -12,6 +12,10 @@
   });
 
   const clamp01 = (value) => Math.max(0, Math.min(1, value));
+  const smoothStep = (value) => {
+    const progress = clamp01(value);
+    return progress * progress * (3 - 2 * progress);
+  };
 
   function loadImage(src) {
     return new Promise((resolve, reject) => {
@@ -100,7 +104,10 @@
     function reset() {
       currentPreludeFrame = 0;
       currentFullFrame = 0;
-      showPrelude(0);
+      if (preludeStage) {
+        preludeStage.style.visibility = 'hidden';
+        preludeStage.dataset.frame = '1';
+      }
       if (fullStage) fullStage.style.visibility = 'hidden';
     }
 
@@ -125,24 +132,36 @@
       fallback,
       reducedMotion = false,
       fallbackMs = 920,
-      rewindMaxMs = 300,
+      rewindMaxMs = 320,
       onNearBlack = () => {},
       onDone = () => {},
+      onPreludeIdle = () => {},
     } = options;
 
     if (!spriteRoot) throw new Error('MatteTransition requires a spriteRoot element.');
 
+    const sourceLeft = spriteRoot.querySelector('[data-ink-source-left]');
+    const sourceRight = spriteRoot.querySelector('[data-ink-source-right]');
+    const mergeLayer = spriteRoot.querySelector('[data-ink-merge-layer]');
+    if (!sourceLeft || !sourceRight || !mergeLayer) {
+      throw new Error('MatteTransition requires two source layers and a merge layer.');
+    }
+
     const player = createMattePlayer(spriteRoot);
+    const mergeStartProgress = clamp01(Number(spriteRoot.dataset.mergeStartProgress ?? 0.42));
+    const sourceAbsorbStart = Math.max(mergeStartProgress, clamp01(Number(spriteRoot.dataset.sourceAbsorbStart ?? 0.82)));
+
     let state = STATES.LOADING;
     let rafHandle = 0;
     let fallbackNearTimer = 0;
     let fallbackDoneTimer = 0;
     let nearBlackFired = false;
     let runId = 0;
-    let activeOrigin = null;
     let preludeProgress = 0;
     let assetsReady = false;
     let loadSettled = false;
+    let sourceGeometry = null;
+    let mergeOrigin = null;
 
     const readyPromise = player.preload()
       .then(() => {
@@ -168,13 +187,94 @@
       return Math.max(...corners.map(([x, y]) => Math.hypot(x - origin.x, y - origin.y)));
     }
 
-    function positionLayer(layer, origin, overscan = 1.08) {
-      if (!layer || !origin) return;
+    function getMergeOrigin() {
+      return {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      };
+    }
+
+    function positionMergeLayer(origin, overscan = 1.08) {
       const size = Math.ceil(farthestCornerDistance(origin) * 2 * overscan);
-      layer.style.left = `${origin.x}px`;
-      layer.style.top = `${origin.y}px`;
-      layer.style.width = `${size}px`;
-      layer.style.height = `${size}px`;
+      mergeLayer.style.left = `${origin.x}px`;
+      mergeLayer.style.top = `${origin.y}px`;
+      mergeLayer.style.width = `${size}px`;
+      mergeLayer.style.height = `${size}px`;
+    }
+
+    function measureSourceGeometry() {
+      const leftRect = sourceLeft.getBoundingClientRect();
+      const rightRect = sourceRight.getBoundingClientRect();
+      sourceGeometry = {
+        left: {
+          x: leftRect.left + leftRect.width / 2,
+          y: leftRect.top + leftRect.height / 2,
+        },
+        right: {
+          x: rightRect.left + rightRect.width / 2,
+          y: rightRect.top + rightRect.height / 2,
+        },
+      };
+    }
+
+    function resetSourceVisuals() {
+      [sourceLeft, sourceRight].forEach((source) => {
+        source.style.removeProperty('transform');
+        source.style.removeProperty('visibility');
+      });
+    }
+
+    function resetMergeVisual() {
+      mergeLayer.style.visibility = 'hidden';
+      mergeLayer.style.width = '1px';
+      mergeLayer.style.height = '1px';
+      player.reset();
+    }
+
+    function renderSources(progress) {
+      if (!sourceGeometry || !mergeOrigin) return;
+
+      const move = smoothStep(progress);
+      const grow = 1 + 0.24 * smoothStep(progress / Math.max(sourceAbsorbStart, 0.001));
+      const absorb = assetsReady
+        ? smoothStep((progress - sourceAbsorbStart) / Math.max(1 - sourceAbsorbStart, 0.001))
+        : 0;
+      const scale = grow * (1 - 0.5 * absorb);
+      const curve = Math.min(window.innerWidth * 0.055, 26) * Math.sin(Math.PI * move);
+
+      const renderSource = (source, start, direction) => {
+        const dx = (mergeOrigin.x - start.x) * move + curve * direction;
+        const dy = (mergeOrigin.y - start.y) * move;
+        source.style.transform = `translate3d(${dx.toFixed(2)}px,${dy.toFixed(2)}px,0) scale(${scale.toFixed(4)})`;
+        source.style.visibility = assetsReady && progress >= 0.995 ? 'hidden' : 'visible';
+      };
+
+      renderSource(sourceLeft, sourceGeometry.left, 1);
+      renderSource(sourceRight, sourceGeometry.right, -1);
+    }
+
+    function renderMerge(progress) {
+      if (!assetsReady) {
+        mergeLayer.style.visibility = 'hidden';
+        return;
+      }
+
+      const local = clamp01((progress - mergeStartProgress) / Math.max(1 - mergeStartProgress, 0.001));
+      if (local <= 0) {
+        mergeLayer.style.visibility = 'hidden';
+        return;
+      }
+
+      mergeLayer.style.visibility = 'visible';
+      const frame = Math.round((player.preludeFrameCount - 1) * smoothStep(local));
+      player.showPrelude(frame);
+    }
+
+    function renderPrelude(progress) {
+      preludeProgress = clamp01(progress);
+      if (reducedMotion) return;
+      renderSources(preludeProgress);
+      renderMerge(preludeProgress);
     }
 
     function fireNearBlack() {
@@ -201,16 +301,26 @@
 
     function resetFallbackVisual() {
       if (!fallback) return;
-      fallback.classList.remove('is-active', 'is-prelude-active');
-      fallback.style.removeProperty('--matte-fallback-start-scale');
-      fallback.style.removeProperty('--matte-fallback-prelude-scale');
+      fallback.classList.remove('is-active');
+      fallback.style.removeProperty('--matte-fallback-ms');
     }
 
-    function beginPrelude(origin) {
+    function returnToIdle() {
+      hideMatte();
+      resetSourceVisuals();
+      resetMergeVisual();
+      resetFallbackVisual();
+      preludeProgress = 0;
+      sourceGeometry = null;
+      mergeOrigin = null;
+      state = loadSettled ? STATES.IDLE : STATES.LOADING;
+      onPreludeIdle();
+    }
+
+    function beginPrelude() {
       if (reducedMotion && (state === STATES.LOADING || state === STATES.IDLE)) {
         runId += 1;
         nearBlackFired = false;
-        activeOrigin = origin;
         preludeProgress = 0;
         state = STATES.PRELUDE;
         return true;
@@ -222,41 +332,22 @@
       cancelPlayback();
       clearFallbackTimers();
       nearBlackFired = false;
-      activeOrigin = origin;
       preludeProgress = 0;
       state = STATES.PRELUDE;
 
-      if (assetsReady) {
-        positionLayer(spriteRoot, origin);
-        player.showPrelude(0);
-        spriteRoot.classList.add('is-active');
-        return true;
-      }
-
-      if (fallback) {
-        positionLayer(fallback, origin, 1.10);
-        fallback.style.setProperty('--matte-fallback-prelude-scale', '.015');
-        fallback.classList.add('is-prelude-active');
-      }
+      resetSourceVisuals();
+      player.reset();
+      mergeOrigin = getMergeOrigin();
+      positionMergeLayer(mergeOrigin);
+      spriteRoot.classList.add('is-active');
+      measureSourceGeometry();
+      renderPrelude(0);
       return true;
     }
 
     function setPreludeProgress(value) {
       if (state !== STATES.PRELUDE) return;
-      preludeProgress = clamp01(value);
-
-      if (reducedMotion) return;
-
-      if (assetsReady) {
-        const lastFrame = Math.max(0, player.preludeFrameCount - 1);
-        player.showPrelude(Math.round(lastFrame * preludeProgress));
-        return;
-      }
-
-      if (fallback) {
-        const scale = 0.015 + preludeProgress * 0.065;
-        fallback.style.setProperty('--matte-fallback-prelude-scale', scale.toFixed(4));
-      }
+      renderPrelude(value);
     }
 
     function cancelPrelude() {
@@ -265,48 +356,30 @@
       runId += 1;
       const activeRunId = runId;
       const startProgress = preludeProgress;
-      preludeProgress = 0;
 
       if (reducedMotion || startProgress <= 0.001) {
-        hideMatte();
-        resetFallbackVisual();
-        player.reset();
-        state = STATES.IDLE;
-        activeOrigin = null;
+        returnToIdle();
         return;
       }
 
       state = STATES.REWINDING;
-      const duration = Math.max(100, Math.round(rewindMaxMs * startProgress));
+      const duration = Math.max(110, Math.round(rewindMaxMs * startProgress));
       const startedAt = performance.now();
-      const startFrame = assetsReady ? player.getCurrentPreludeFrame() : 0;
-      const fallbackStartScale = 0.015 + startProgress * 0.065;
 
       const tick = (now) => {
         if (activeRunId !== runId || state !== STATES.REWINDING) return;
         const elapsed = Math.max(0, now - startedAt);
         const linear = Math.min(1, elapsed / duration);
         const eased = 1 - Math.pow(1 - linear, 3);
-        const remaining = 1 - eased;
-
-        if (assetsReady) {
-          player.showPrelude(Math.round(startFrame * remaining));
-        } else if (fallback) {
-          const scale = 0.015 + (fallbackStartScale - 0.015) * remaining;
-          fallback.style.setProperty('--matte-fallback-prelude-scale', scale.toFixed(4));
-        }
+        renderPrelude(startProgress * (1 - eased));
 
         if (linear < 1) {
           rafHandle = requestAnimationFrame(tick);
           return;
         }
 
-        hideMatte();
-        resetFallbackVisual();
-        player.reset();
-        state = STATES.IDLE;
-        activeOrigin = null;
         rafHandle = 0;
+        returnToIdle();
       };
 
       rafHandle = requestAnimationFrame(tick);
@@ -318,29 +391,29 @@
       cancelPlayback();
       hideMatte();
       state = STATES.DONE;
-      activeOrigin = null;
+      sourceGeometry = null;
+      mergeOrigin = null;
       onDone();
     }
 
-    function startFallback(origin, activeRunId) {
+    function startFallback(activeRunId) {
       cancelPlayback();
       clearFallbackTimers();
-      hideMatte();
+      mergeLayer.style.visibility = 'hidden';
       state = STATES.FALLBACK;
-      positionLayer(fallback, origin, 1.10);
 
       if (!fallback) {
         fireNearBlack();
+        hideMatte();
         state = STATES.DONE;
-        activeOrigin = null;
+        sourceGeometry = null;
+        mergeOrigin = null;
         onDone();
         return;
       }
 
-      const startScale = 0.015 + clamp01(preludeProgress) * 0.065;
       fallback.style.setProperty('--matte-fallback-ms', `${fallbackMs}ms`);
-      fallback.style.setProperty('--matte-fallback-start-scale', startScale.toFixed(4));
-      fallback.classList.remove('is-prelude-active', 'is-active');
+      fallback.classList.remove('is-active');
       void fallback.offsetWidth;
       fallback.classList.add('is-active');
 
@@ -352,37 +425,42 @@
       fallbackDoneTimer = window.setTimeout(() => {
         if (activeRunId !== runId || state !== STATES.FALLBACK) return;
         fireNearBlack();
+        hideMatte();
         resetFallbackVisual();
         state = STATES.DONE;
-        activeOrigin = null;
+        sourceGeometry = null;
+        mergeOrigin = null;
         onDone();
       }, fallbackMs);
     }
 
-    function commit(origin = activeOrigin) {
+    function commit() {
       if (state !== STATES.PRELUDE) return false;
 
       runId += 1;
       const activeRunId = runId;
-      activeOrigin = origin || activeOrigin;
       nearBlackFired = false;
-      preludeProgress = 1;
+      renderPrelude(1);
 
       if (reducedMotion) {
         state = STATES.DONE;
         fireNearBlack();
-        activeOrigin = null;
+        hideMatte();
+        sourceGeometry = null;
+        mergeOrigin = null;
         onDone();
         return true;
       }
 
       if (!assetsReady) {
-        startFallback(activeOrigin, activeRunId);
+        startFallback(activeRunId);
         return true;
       }
 
       state = STATES.PLAYING;
-      positionLayer(spriteRoot, activeOrigin);
+      sourceLeft.style.visibility = 'hidden';
+      sourceRight.style.visibility = 'hidden';
+      mergeLayer.style.visibility = 'visible';
       spriteRoot.classList.add('is-active');
 
       const startFrame = Math.max(0, Math.min(player.frameCount - 1, player.continuationStartFrame));
@@ -418,15 +496,19 @@
       cancelPlayback();
       clearFallbackTimers();
       nearBlackFired = false;
-      activeOrigin = null;
+      sourceGeometry = null;
+      mergeOrigin = null;
       preludeProgress = 0;
       hideMatte();
-      player.reset();
+      resetSourceVisuals();
+      resetMergeVisual();
       resetFallbackVisual();
       state = loadSettled ? STATES.IDLE : STATES.LOADING;
+      onPreludeIdle();
     }
 
-    player.reset();
+    resetSourceVisuals();
+    resetMergeVisual();
 
     return {
       ready: () => readyPromise,
