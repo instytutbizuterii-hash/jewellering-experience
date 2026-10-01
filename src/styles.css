@@ -203,6 +203,9 @@ button { font: inherit; }
 
 .enter-button {
   --hold-progress: 0;
+  --hold-ink-opacity: 0;
+  --hold-ink-x: 0%;
+  --hold-ink-y: 0%;
   position: relative;
   display: inline-grid;
   min-width: 250px;
@@ -238,12 +241,24 @@ button { font: inherit; }
   z-index: 2;
 }
 
-.hold-button-stroke {
+.hold-button-stroke-shell {
+  position: relative;
   display: block;
   width: 260px;
   max-width: 100%;
   height: 18px;
   margin-top: 2px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.hold-button-stroke {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 18px;
   overflow: visible;
   pointer-events: none;
 }
@@ -260,34 +275,41 @@ button { font: inherit; }
   stroke: currentColor;
   stroke-width: 1.35px;
   opacity: .56;
-  transition: stroke-dashoffset .78s cubic-bezier(.2,.72,.25,1), opacity .26s ease, stroke-width .26s ease;
+  transition: stroke-dashoffset .78s cubic-bezier(.2,.72,.25,1), opacity .2s ease, stroke-width .2s ease;
 }
 
-.hold-button-stroke__wet {
-  stroke: rgba(18,18,18,.18);
-  stroke-width: 5px;
+.hold-button-ink {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: 318px;
+  max-width: 126%;
+  aspect-ratio: 768 / 176;
+  background-image: url("../assets/cta/hold-ink-atlas-v0.1.20-r6.png");
+  background-repeat: no-repeat;
+  background-size: 600% 400%;
+  background-position: var(--hold-ink-x) var(--hold-ink-y);
   opacity: 0;
-  filter: blur(1.15px);
-  transition: stroke-dashoffset .78s cubic-bezier(.2,.72,.25,1), opacity .16s linear;
+  transform: translate(-50%,-50%);
+  will-change: background-position, opacity;
+  pointer-events: none;
 }
 
-.intro.is-cta-visible .hold-button-stroke path {
+.intro.is-cta-visible .hold-button-stroke__line {
   stroke-dashoffset: 0;
-  transition-delay: .12s, 0s, 0s;
+  transition-delay: .12s;
 }
 
 .enter-button.is-holding .hold-button-stroke__line,
 .enter-button.is-committed .hold-button-stroke__line {
-  stroke-width: 1.6px;
-  opacity: .82;
+  stroke-width: 1.52px;
+  opacity: .79;
 }
 
-.enter-button.is-holding .hold-button-stroke__wet {
-  opacity: var(--hold-progress);
-}
-
-.enter-button.is-committed .hold-button-stroke__wet {
-  opacity: 1;
+.enter-button.is-holding .hold-button-ink,
+.enter-button.is-committed .hold-button-ink {
+  opacity: var(--hold-ink-opacity);
 }
 
 .enter-button.is-committed {

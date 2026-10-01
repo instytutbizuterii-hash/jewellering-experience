@@ -3,6 +3,7 @@ const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 const intro = document.querySelector('#intro');
 const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
+const holdInk = enterButton?.querySelector('.hold-button-ink');
 const themeColor = document.querySelector('meta[name="theme-color"]');
 const restartButton = document.querySelector('#restartButton');
 const blackout = document.querySelector('#blackout');
@@ -29,6 +30,9 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 const HANDWRITING_TARGET_DURATION = 3400;
 const HANDWRITING_START_DELAY = 340;
 const RESTART_BLACKOUT_DURATION = reducedMotion ? 0 : 500;
+const HOLD_INK_FRAME_COUNT = 24;
+const HOLD_INK_ATLAS_COLUMNS = 6;
+const HOLD_INK_ATLAS_ROWS = 4;
 
 let entered = false;
 let scrollFrame = 0;
@@ -239,6 +243,36 @@ const matteTransition = window.createMatteTransition({
   onDone: revealHistoryOpening,
 });
 
+function setHoldInkFeedback(progress) {
+  const safeProgress = clamp(progress);
+
+  if (!holdInk || safeProgress <= 0) {
+    enterButton.style.setProperty('--hold-ink-opacity', '0');
+    enterButton.style.setProperty('--hold-ink-x', '0%');
+    enterButton.style.setProperty('--hold-ink-y', '0%');
+    return;
+  }
+
+  // HOLD is rendered as a real 24-frame ink sequence. No scaleX, clip reveal,
+  // blur trick or opacity-only approximation: each frame is a separate state.
+  const frameIndex = Math.min(
+    HOLD_INK_FRAME_COUNT - 1,
+    Math.max(1, Math.round(safeProgress * (HOLD_INK_FRAME_COUNT - 1))),
+  );
+  const column = frameIndex % HOLD_INK_ATLAS_COLUMNS;
+  const row = Math.floor(frameIndex / HOLD_INK_ATLAS_COLUMNS);
+  const x = HOLD_INK_ATLAS_COLUMNS > 1
+    ? (column / (HOLD_INK_ATLAS_COLUMNS - 1)) * 100
+    : 0;
+  const y = HOLD_INK_ATLAS_ROWS > 1
+    ? (row / (HOLD_INK_ATLAS_ROWS - 1)) * 100
+    : 0;
+
+  enterButton.style.setProperty('--hold-ink-x', `${x.toFixed(4)}%`);
+  enterButton.style.setProperty('--hold-ink-y', `${y.toFixed(4)}%`);
+  enterButton.style.setProperty('--hold-ink-opacity', '1');
+}
+
 const holdCTA = window.createHoldCTA({
   trigger: enterButton,
   reducedMotion,
@@ -252,7 +286,10 @@ const holdCTA = window.createHoldCTA({
     )
   ),
   onStart: () => true,
+  onProgress: (progress) => setHoldInkFeedback(progress),
+  onCancel: () => setHoldInkFeedback(0),
   onCommit: () => {
+    setHoldInkFeedback(1);
     prepareForNarrativeTransition();
     matteTransition.play();
   },
@@ -271,6 +308,7 @@ function restartExperience() {
     entered = false;
     matteTransition.reset();
     holdCTA.reset();
+    setHoldInkFeedback(0);
     playIntroSequence();
 
     requestAnimationFrame(() => {
