@@ -105,6 +105,11 @@
     const player = createDualMattePlayer(spriteRoot);
     const playbackMs = Math.max(1, Number(spriteRoot.dataset.playbackMs ?? 2000));
     const frameGamma = Math.max(1, Number(spriteRoot.dataset.frameGamma ?? 3.2));
+    const leadInMs = Math.max(0, Number(spriteRoot.dataset.leadInMs ?? 120));
+    const leadInTargetFrame = Math.max(
+      0,
+      Math.min(player.frameCount - 1, Number(spriteRoot.dataset.leadInTargetFrame ?? 4) - 1),
+    );
     const nearBlackFrame = Math.max(1, Math.min(player.frameCount, Number(spriteRoot.dataset.nearBlackFrame ?? 43))) - 1;
     const overscan = Math.max(1, Number(spriteRoot.dataset.fieldOverscan ?? 1.08));
 
@@ -165,6 +170,28 @@
     function frameForProgress(progress) {
       const curved = Math.pow(clamp01(progress), frameGamma);
       return Math.round((player.frameCount - 1) * curved);
+    }
+
+    function originalFrameOnsetMs(frameIndex) {
+      if (frameIndex <= 0) return 0;
+      const denominator = Math.max(1, player.frameCount - 1);
+      const roundedThreshold = Math.max(0, (frameIndex - 0.5) / denominator);
+      return playbackMs * Math.pow(roundedThreshold, 1 / frameGamma);
+    }
+
+    const originalLeadInTargetMs = originalFrameOnsetMs(leadInTargetFrame);
+    const effectivePlaybackMs = leadInMs + Math.max(0, playbackMs - originalLeadInTargetMs);
+
+    function frameForElapsed(elapsedMs) {
+      const safeElapsed = Math.max(0, elapsedMs);
+
+      if (leadInMs > 0 && safeElapsed < leadInMs && leadInTargetFrame > 0) {
+        const leadProgress = clamp01(safeElapsed / leadInMs);
+        return Math.round(leadInTargetFrame * leadProgress);
+      }
+
+      const virtualElapsed = originalLeadInTargetMs + Math.max(0, safeElapsed - leadInMs);
+      return frameForProgress(virtualElapsed / playbackMs);
     }
 
     function maybeSignalNearBlack(frameIndex) {
@@ -279,12 +306,12 @@
       const tick = (now) => {
         if (activeRunId !== runId || state !== STATES.PLAYING) return;
 
-        const progress = clamp01((now - startedAt) / playbackMs);
-        const frame = frameForProgress(progress);
+        const elapsed = Math.max(0, now - startedAt);
+        const frame = frameForElapsed(elapsed);
         player.showFrame(frame);
         maybeSignalNearBlack(frame);
 
-        if (progress < 1) {
+        if (elapsed < effectivePlaybackMs) {
           rafHandle = requestAnimationFrame(tick);
           return;
         }
