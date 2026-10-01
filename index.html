@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&family=Manrope:wght@300;400;500&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r2" />
+  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r3" />
 </head>
 <body>
   <section class="intro" id="intro" aria-label="Wprowadzenie do Biżufittingu">
@@ -41,13 +41,14 @@
       <button class="enter-button hold-button" id="enterButton" type="button" aria-label="Przytrzymaj, aby odkryć Biżufitting" aria-disabled="false">
         <span class="hold-button-label">PRZYTRZYMAJ, ABY ODKRYĆ</span>
         <svg class="hold-button-stroke" viewBox="0 0 260 18" aria-hidden="true" focusable="false">
-          <path d="M5 9 C48 7.2 91 10.8 132 9.1 C177 7.2 216 10.1 255 8.4" />
+          <path class="hold-button-stroke__wet" d="M5 9 C48 7.2 91 10.8 132 9.1 C177 7.2 216 10.1 255 8.4" />
+          <path class="hold-button-stroke__line" d="M5 9 C48 7.2 91 10.8 132 9.1 C177 7.2 216 10.1 255 8.4" />
         </svg>
       </button>
     </div>
   </section>
 
-  <div class="ink-matte" id="inkMatte" data-frame-count="57" data-frames-per-atlas="15" data-atlas-columns="5" data-atlas-rows="3" data-atlas-base="./assets/ink-sprite/ink-matte-atlas-" data-atlas-count="4" data-hold-frame-gamma="3.2" data-field-overscan="1.08" aria-hidden="true">
+  <div class="ink-matte" id="inkMatte" data-frame-count="57" data-frames-per-atlas="15" data-atlas-columns="5" data-atlas-rows="3" data-atlas-base="./assets/ink-sprite/ink-matte-alpha-v0.1.20-r3-atlas-" data-atlas-count="4" data-playback-ms="2000" data-frame-gamma="3.2" data-near-black-frame="43" data-field-overscan="1.08" aria-hidden="true">
     <div class="ink-matte__origin ink-matte__origin--left" data-ink-origin-left></div>
     <div class="ink-matte__origin ink-matte__origin--right" data-ink-origin-right></div>
     <div class="ink-matte__field" data-ink-field-left>
@@ -121,8 +122,8 @@
     </section>
   </main>
 
-  <script src="./src/hold-cta.js?v=0.1.20-r2" defer></script>
-  <script src="./src/matte-transition.js?v=0.1.20-r2" defer></script>
-  <script src="./src/app.js?v=0.1.20-r2" defer></script>
+  <script src="./src/hold-cta.js?v=0.1.20-r3" defer></script>
+  <script src="./src/matte-transition.js?v=0.1.20-r3" defer></script>
+  <script src="./src/app.js?v=0.1.20-r3" defer></script>
 </body>
 </html>

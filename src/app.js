@@ -160,7 +160,6 @@ function playIntroSequence() {
     'is-copy-two-visible',
     'is-cta-visible',
     'is-ink-growing',
-    'is-ink-hold-active',
   );
   resetHandwritingGeometry();
 
@@ -238,7 +237,6 @@ const matteTransition = window.createMatteTransition({
   reducedMotion,
   onNearBlack: mountHistoryUnderMatte,
   onDone: revealHistoryOpening,
-  onPreludeIdle: () => intro.classList.remove('is-ink-hold-active'),
 });
 
 const holdCTA = window.createHoldCTA({
@@ -253,17 +251,10 @@ const holdCTA = window.createHoldCTA({
       || (reducedMotion && matteTransition.getState() === matteTransition.states.LOADING)
     )
   ),
-  onStart: () => {
-    intro.classList.add('is-ink-hold-active');
-    const started = matteTransition.beginPrelude();
-    if (!started) intro.classList.remove('is-ink-hold-active');
-    return started;
-  },
-  onProgress: (progress) => matteTransition.setPreludeProgress(progress),
-  onCancel: () => matteTransition.cancelPrelude(),
+  onStart: () => true,
   onCommit: () => {
     prepareForNarrativeTransition();
-    matteTransition.commit();
+    matteTransition.play();
   },
 });
 

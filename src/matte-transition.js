@@ -4,9 +4,7 @@
   const STATES = Object.freeze({
     LOADING: 'LOADING',
     IDLE: 'IDLE',
-    PRELUDE: 'PRELUDE',
-    REWINDING: 'REWINDING',
-    COMMITTING: 'COMMITTING',
+    PLAYING: 'PLAYING',
     FALLBACK: 'FALLBACK',
     DONE: 'DONE',
   });
@@ -89,11 +87,8 @@
       fallback,
       reducedMotion = false,
       fallbackMs = 920,
-      rewindMaxMs = 320,
-      commitSettleMs = 120,
       onNearBlack = () => {},
       onDone = () => {},
-      onPreludeIdle = () => {},
     } = options;
 
     if (!spriteRoot) throw new Error('MatteTransition requires a spriteRoot element.');
@@ -108,18 +103,19 @@
     }
 
     const player = createDualMattePlayer(spriteRoot);
-    const holdFrameGamma = Math.max(1, Number(spriteRoot.dataset.holdFrameGamma ?? 2.6));
+    const playbackMs = Math.max(1, Number(spriteRoot.dataset.playbackMs ?? 2000));
+    const frameGamma = Math.max(1, Number(spriteRoot.dataset.frameGamma ?? 3.2));
+    const nearBlackFrame = Math.max(1, Math.min(player.frameCount, Number(spriteRoot.dataset.nearBlackFrame ?? 43))) - 1;
     const overscan = Math.max(1, Number(spriteRoot.dataset.fieldOverscan ?? 1.08));
 
     let state = STATES.LOADING;
     let rafHandle = 0;
     let fallbackNearTimer = 0;
     let fallbackDoneTimer = 0;
-    let settleTimer = 0;
     let runId = 0;
-    let preludeProgress = 0;
     let assetsReady = false;
     let loadSettled = false;
+    let nearBlackSent = false;
 
     const readyPromise = player.preload()
       .then(() => {
@@ -166,11 +162,20 @@
       positionField(fieldRight, rectCenter(originRight));
     }
 
+    function frameForProgress(progress) {
+      const curved = Math.pow(clamp01(progress), frameGamma);
+      return Math.round((player.frameCount - 1) * curved);
+    }
+
+    function maybeSignalNearBlack(frameIndex) {
+      if (nearBlackSent || frameIndex < nearBlackFrame) return;
+      nearBlackSent = true;
+      onNearBlack();
+    }
+
     function cancelPlayback() {
       cancelAnimationFrame(rafHandle);
       rafHandle = 0;
-      window.clearTimeout(settleTimer);
-      settleTimer = 0;
     }
 
     function clearFallbackTimers() {
@@ -190,158 +195,105 @@
       fallback.style.removeProperty('--matte-fallback-ms');
     }
 
-    function frameForProgress(progress) {
-      const curved = Math.pow(clamp01(progress), holdFrameGamma);
-      return Math.round((player.frameCount - 1) * curved);
-    }
-
-    function renderPrelude(progress) {
-      preludeProgress = clamp01(progress);
-      if (reducedMotion || !assetsReady) return;
-      player.showFrame(frameForProgress(preludeProgress));
-    }
-
-    function returnToIdle() {
+    function finishPlayback(activeRunId) {
+      if (activeRunId !== runId || state !== STATES.PLAYING) return;
+      const finalFrame = player.frameCount - 1;
+      player.showFrame(finalFrame);
+      maybeSignalNearBlack(finalFrame);
       hideMatte();
-      resetFallbackVisual();
-      player.reset();
-      preludeProgress = 0;
-      state = loadSettled ? STATES.IDLE : STATES.LOADING;
-      onPreludeIdle();
+      state = STATES.DONE;
+      onDone();
     }
 
-    function beginPrelude() {
-      if (reducedMotion && (state === STATES.LOADING || state === STATES.IDLE)) {
-        runId += 1;
-        preludeProgress = 0;
-        state = STATES.PRELUDE;
-        return true;
-      }
-
-      if (!loadSettled || state !== STATES.IDLE) return false;
-
-      runId += 1;
-      cancelPlayback();
-      clearFallbackTimers();
-      preludeProgress = 0;
-      state = STATES.PRELUDE;
-
-      player.reset();
-      positionFields();
-      spriteRoot.classList.add('is-active');
-      renderPrelude(0);
-      return true;
-    }
-
-    function setPreludeProgress(value) {
-      if (state !== STATES.PRELUDE) return;
-      renderPrelude(value);
-    }
-
-    function cancelPrelude() {
-      if (state !== STATES.PRELUDE) return;
-
-      runId += 1;
-      const activeRunId = runId;
-      const startProgress = preludeProgress;
-
-      if (reducedMotion || startProgress <= 0.001) {
-        returnToIdle();
-        return;
-      }
-
-      state = STATES.REWINDING;
-      const duration = Math.max(110, Math.round(rewindMaxMs * startProgress));
-      const startedAt = performance.now();
-
-      const tick = (now) => {
-        if (activeRunId !== runId || state !== STATES.REWINDING) return;
-        const elapsed = Math.max(0, now - startedAt);
-        const linear = Math.min(1, elapsed / duration);
-        const eased = 1 - Math.pow(1 - linear, 3);
-        renderPrelude(startProgress * (1 - eased));
-
-        if (linear < 1) {
-          rafHandle = requestAnimationFrame(tick);
-          return;
-        }
-
-        rafHandle = 0;
-        returnToIdle();
-      };
-
-      rafHandle = requestAnimationFrame(tick);
-    }
-
-    function finishCommit(activeRunId) {
-      if (activeRunId !== runId || state !== STATES.COMMITTING) return;
-      onNearBlack();
-      settleTimer = window.setTimeout(() => {
-        if (activeRunId !== runId || state !== STATES.COMMITTING) return;
-        hideMatte();
-        state = STATES.DONE;
-        onDone();
-      }, reducedMotion ? 0 : commitSettleMs);
-    }
-
-    function startFallback(activeRunId) {
+    function startFallback(activeRunId, duration = fallbackMs) {
       cancelPlayback();
       clearFallbackTimers();
       state = STATES.FALLBACK;
 
       if (!fallback) {
+        nearBlackSent = true;
         onNearBlack();
-        hideMatte();
         state = STATES.DONE;
         onDone();
-        return;
+        return true;
       }
 
-      fallback.style.setProperty('--matte-fallback-ms', `${fallbackMs}ms`);
+      fallback.style.setProperty('--matte-fallback-ms', `${duration}ms`);
       fallback.classList.remove('is-active');
       void fallback.offsetWidth;
       fallback.classList.add('is-active');
 
-      fallbackNearTimer = window.setTimeout(() => {
+      const finish = () => {
         if (activeRunId !== runId || state !== STATES.FALLBACK) return;
-        onNearBlack();
-      }, Math.round(fallbackMs * 0.76));
-
-      fallbackDoneTimer = window.setTimeout(() => {
-        if (activeRunId !== runId || state !== STATES.FALLBACK) return;
-        hideMatte();
+        if (!nearBlackSent) {
+          nearBlackSent = true;
+          onNearBlack();
+        }
         resetFallbackVisual();
         state = STATES.DONE;
         onDone();
-      }, fallbackMs);
+      };
+
+      if (duration <= 0) {
+        finish();
+        return true;
+      }
+
+      fallbackNearTimer = window.setTimeout(() => {
+        if (activeRunId !== runId || state !== STATES.FALLBACK || nearBlackSent) return;
+        nearBlackSent = true;
+        onNearBlack();
+      }, Math.round(duration * 0.76));
+
+      fallbackDoneTimer = window.setTimeout(finish, duration);
+      return true;
     }
 
-    function commit() {
-      if (state !== STATES.PRELUDE) return false;
+    function play() {
+      const canPlay = state === STATES.IDLE || (reducedMotion && state === STATES.LOADING);
+      if (!canPlay) return false;
 
       runId += 1;
       const activeRunId = runId;
-      renderPrelude(1);
+      cancelPlayback();
+      clearFallbackTimers();
+      resetFallbackVisual();
+      nearBlackSent = false;
 
       if (reducedMotion) {
-        state = STATES.COMMITTING;
-        if (fallback) {
-          fallback.style.setProperty('--matte-fallback-ms', '0ms');
-          fallback.classList.add('is-active');
-        }
-        finishCommit(activeRunId);
-        return true;
+        return startFallback(activeRunId, 0);
       }
 
-      if (!assetsReady) {
-        startFallback(activeRunId);
-        return true;
+      if (!loadSettled || !assetsReady) {
+        return startFallback(activeRunId, fallbackMs);
       }
 
-      state = STATES.COMMITTING;
+      state = STATES.PLAYING;
+      player.reset();
+      positionFields();
       spriteRoot.classList.add('is-active');
-      player.showFrame(player.frameCount - 1);
-      finishCommit(activeRunId);
+      player.showFrame(0);
+
+      const startedAt = performance.now();
+
+      const tick = (now) => {
+        if (activeRunId !== runId || state !== STATES.PLAYING) return;
+
+        const progress = clamp01((now - startedAt) / playbackMs);
+        const frame = frameForProgress(progress);
+        player.showFrame(frame);
+        maybeSignalNearBlack(frame);
+
+        if (progress < 1) {
+          rafHandle = requestAnimationFrame(tick);
+          return;
+        }
+
+        rafHandle = 0;
+        finishPlayback(activeRunId);
+      };
+
+      rafHandle = requestAnimationFrame(tick);
       return true;
     }
 
@@ -349,12 +301,11 @@
       runId += 1;
       cancelPlayback();
       clearFallbackTimers();
-      preludeProgress = 0;
+      nearBlackSent = false;
       hideMatte();
       player.reset();
       resetFallbackVisual();
       state = loadSettled ? STATES.IDLE : STATES.LOADING;
-      onPreludeIdle();
     }
 
     player.reset();
@@ -363,10 +314,7 @@
       ready: () => readyPromise,
       isReady: () => loadSettled,
       hasAssets: () => assetsReady,
-      beginPrelude,
-      setPreludeProgress,
-      cancelPrelude,
-      commit,
+      play,
       reset,
       getState: () => state,
       states: STATES,
