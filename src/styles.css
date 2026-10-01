@@ -111,11 +111,6 @@ button { font: inherit; }
   --intro-ink-grow-duration: 4.7s;
 }
 
-.intro.is-ink-hold-active::before,
-.intro.is-ink-hold-active::after {
-  visibility: hidden;
-}
-
 .intro-content {
   position: relative;
   z-index: 3;
@@ -286,7 +281,7 @@ button { font: inherit; }
   outline-offset: 6px;
 }
 
-/* NARRATIVE INK MATTE */
+/* NARRATIVE INK MATTE — two fixed origins, no translation, no central merge */
 .ink-matte {
   position: fixed;
   z-index: 70;
@@ -302,78 +297,41 @@ button { font: inherit; }
   visibility: visible;
 }
 
-.ink-matte__source {
+.ink-matte__origin {
   position: absolute;
-  z-index: 1;
   width: var(--intro-ink-size);
   aspect-ratio: 1;
-  transform-origin: 50% 50%;
-  will-change: transform;
+  visibility: hidden;
+  pointer-events: none;
 }
 
-.ink-matte__source--left {
+.ink-matte__origin--left {
   top: var(--intro-ink-left-top);
   left: var(--intro-ink-left-left);
 }
 
-.ink-matte__source--right {
+.ink-matte__origin--right {
   right: var(--intro-ink-right-right);
   bottom: var(--intro-ink-right-bottom);
 }
 
-.ink-matte__source-visual {
+.ink-matte__field {
   position: absolute;
-  inset: 0;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  mix-blend-mode: multiply;
-}
-
-.ink-matte__source--left .ink-matte__source-visual {
-  background-image: url("../assets/ink-decor/intro-ink-left-v0.1.20.png");
-  transform: rotate(var(--intro-ink-left-rotation));
-}
-
-.ink-matte__source--right .ink-matte__source-visual {
-  background-image: url("../assets/ink-decor/intro-ink-right-v0.1.20.png");
-  transform: rotate(var(--intro-ink-right-rotation));
-}
-
-.ink-matte__merge {
-  position: absolute;
-  z-index: 2;
-  left: 50%;
-  top: 50%;
-  width: 1px;
-  height: 1px;
-  visibility: hidden;
   transform: translate(-50%,-50%);
-  transform-origin: center;
+  transform-origin: 50% 50%;
   overflow: hidden;
-  background: #fff;
+  background: transparent;
   mix-blend-mode: multiply;
+  will-change: width, height;
 }
 
-.ink-matte__prelude,
 .ink-matte__stage {
   position: absolute;
+  inset: 0;
+  background-color: #fff;
   background-repeat: no-repeat;
   background-position: 0% 0%;
-  background-color: #fff;
-}
-
-.ink-matte__prelude {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%,-50%);
-  background-size: 1000% 600%;
-}
-
-.ink-matte__stage {
-  inset: 0;
   background-size: 500% 300%;
-  visibility: hidden;
 }
 
 .matte-fallback {
