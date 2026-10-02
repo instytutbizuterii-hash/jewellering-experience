@@ -46,7 +46,7 @@ button { font: inherit; }
 
 /* INTRO */
 .intro {
-  --intro-ink-scale: .88;
+  --intro-ink-scale: .975;
   --intro-ink-grow-duration: 0s;
   position: relative;
   display: grid;
@@ -122,7 +122,7 @@ button { font: inherit; }
 
 .intro.is-ink-growing {
   --intro-ink-scale: 1;
-  --intro-ink-grow-duration: 4.7s;
+  --intro-ink-grow-duration: 12s;
 }
 
 .intro-content {
@@ -300,7 +300,7 @@ button { font: inherit; }
   width: 318px;
   max-width: 126%;
   aspect-ratio: 768 / 176;
-  background-image: url("../assets/cta/hold-ink-atlas-v0.1.20-r6.png");
+  background-image: url("../assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png");
   background-repeat: no-repeat;
   background-size: 600% 400%;
   background-position: var(--hold-ink-x) var(--hold-ink-y);

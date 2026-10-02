@@ -30,9 +30,14 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 const HANDWRITING_TARGET_DURATION = 3400;
 const HANDWRITING_START_DELAY = 340;
 const RESTART_BLACKOUT_DURATION = reducedMotion ? 0 : 500;
-const HOLD_INK_FRAME_COUNT = 24;
+const HOLD_INK_FRAME_COUNT = 48;
+const HOLD_INK_FRAMES_PER_ATLAS = 24;
 const HOLD_INK_ATLAS_COLUMNS = 6;
 const HOLD_INK_ATLAS_ROWS = 4;
+const HOLD_INK_ATLAS_PATHS = [
+  "../assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png",
+  "../assets/cta/hold-ink-atlas-v0.1.20-r8.5-2.png",
+];
 
 let entered = false;
 let scrollFrame = 0;
@@ -247,20 +252,26 @@ function setHoldInkFeedback(progress) {
   const safeProgress = clamp(progress);
 
   if (!holdInk || safeProgress <= 0) {
+    if (holdInk) holdInk.style.backgroundImage = 'url("../assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png")';
     enterButton.style.setProperty('--hold-ink-opacity', '0');
     enterButton.style.setProperty('--hold-ink-x', '0%');
     enterButton.style.setProperty('--hold-ink-y', '0%');
     return;
   }
 
-  // HOLD is rendered as a real 24-frame ink sequence. No scaleX, clip reveal,
-  // blur trick or opacity-only approximation: each frame is a separate state.
+  // HOLD now uses 48 real atlas frames split across two 24-frame sheets.
+  // This keeps the ink visibly developing through the full 2-second hold.
   const frameIndex = Math.min(
     HOLD_INK_FRAME_COUNT - 1,
-    Math.max(1, Math.round(safeProgress * (HOLD_INK_FRAME_COUNT - 1))),
+    Math.max(1, Math.floor(safeProgress * HOLD_INK_FRAME_COUNT)),
   );
-  const column = frameIndex % HOLD_INK_ATLAS_COLUMNS;
-  const row = Math.floor(frameIndex / HOLD_INK_ATLAS_COLUMNS);
+  const atlasIndex = Math.min(
+    Math.floor(frameIndex / HOLD_INK_FRAMES_PER_ATLAS),
+    HOLD_INK_ATLAS_PATHS.length - 1,
+  );
+  const atlasFrameIndex = frameIndex - atlasIndex * HOLD_INK_FRAMES_PER_ATLAS;
+  const column = atlasFrameIndex % HOLD_INK_ATLAS_COLUMNS;
+  const row = Math.floor(atlasFrameIndex / HOLD_INK_ATLAS_COLUMNS);
   const x = HOLD_INK_ATLAS_COLUMNS > 1
     ? (column / (HOLD_INK_ATLAS_COLUMNS - 1)) * 100
     : 0;
@@ -268,6 +279,7 @@ function setHoldInkFeedback(progress) {
     ? (row / (HOLD_INK_ATLAS_ROWS - 1)) * 100
     : 0;
 
+  holdInk.style.backgroundImage = `url("${HOLD_INK_ATLAS_PATHS[atlasIndex]}")`;
   enterButton.style.setProperty('--hold-ink-x', `${x.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-y', `${y.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-opacity', '1');
