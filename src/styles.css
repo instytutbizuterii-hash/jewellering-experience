@@ -300,7 +300,7 @@ button { font: inherit; }
   width: 318px;
   max-width: 126%;
   aspect-ratio: 768 / 176;
-  background-image: url("../assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png");
+  background-image: url("../assets/cta/hold-ink-atlas-v0.1.20-r8.5.2-1.png");
   background-repeat: no-repeat;
   background-size: 600% 400%;
   background-position: var(--hold-ink-x) var(--hold-ink-y);

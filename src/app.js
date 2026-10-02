@@ -35,8 +35,8 @@ const HOLD_INK_FRAMES_PER_ATLAS = 24;
 const HOLD_INK_ATLAS_COLUMNS = 6;
 const HOLD_INK_ATLAS_ROWS = 4;
 const HOLD_INK_ATLAS_PATHS = [
-  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png", document.baseURI).href,
-  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5-2.png", document.baseURI).href,
+  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5.2-1.png", document.baseURI).href,
+  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5.2-2.png", document.baseURI).href,
 ];
 
 let entered = false;
