@@ -35,8 +35,8 @@ const HOLD_INK_FRAMES_PER_ATLAS = 24;
 const HOLD_INK_ATLAS_COLUMNS = 6;
 const HOLD_INK_ATLAS_ROWS = 4;
 const HOLD_INK_ATLAS_PATHS = [
-  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5.2-1.png", document.baseURI).href,
-  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5.2-2.png", document.baseURI).href,
+  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.6-1.png", document.baseURI).href,
+  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.6-2.png", document.baseURI).href,
 ];
 
 let entered = false;
@@ -259,8 +259,8 @@ function setHoldInkFeedback(progress) {
     return;
   }
 
-  // HOLD now uses 48 real atlas frames split across two 24-frame sheets.
-  // This keeps the ink visibly developing through the full 2-second hold.
+  // 48 real HOLD frames over the same 2-second hold.
+  // Frames 1–24 are the original accepted r6 sequence; 25–48 are its approved continuation.
   const frameIndex = Math.min(
     HOLD_INK_FRAME_COUNT - 1,
     Math.max(1, Math.floor(safeProgress * HOLD_INK_FRAME_COUNT)),
@@ -279,11 +279,7 @@ function setHoldInkFeedback(progress) {
     ? (row / (HOLD_INK_ATLAS_ROWS - 1)) * 100
     : 0;
 
-  if (atlasIndex === 0) {
-    holdInk.style.removeProperty('background-image');
-  } else {
-    holdInk.style.backgroundImage = `url("${HOLD_INK_ATLAS_PATHS[atlasIndex]}")`;
-  }
+  holdInk.style.backgroundImage = `url("${HOLD_INK_ATLAS_PATHS[atlasIndex]}")`;
   enterButton.style.setProperty('--hold-ink-x', `${x.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-y', `${y.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-opacity', '1');
