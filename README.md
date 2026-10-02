@@ -1,10 +1,13 @@
 # Biżufitting Experience
 
-Wersja: **0.1.20** — build **r8.5**, cache token `0.1.20-r8.5`.
+Wersja: **0.1.20** — build **r8.5.1**, cache token `0.1.20-r8.5.1`.
 
 Interaktywne, mobile-first doświadczenie **Biżufitting** uruchamiane głównie przez NFC.
 
-## v0.1.20 r8.5 — 48 klatek HOLD CTA + cleanup runtime
+## v0.1.20 r8.5.1 — poprawka ścieżek atlasów HOLD
+- naprawiono błąd ścieżek w `app.js`: inline `background-image` był liczony względem dokumentu, a używał ścieżki `../assets/...`, przez co na GitHub Pages wskazywał poza katalog projektu,
+- atlas 1 jest znowu obsługiwany przez CSS, a atlas 2 dostaje bezpieczny URL wyliczony z `document.baseURI`,
+- sama sekwencja 48 klatek i 2-sekundowy HOLD pozostają bez zmian,
 - animacja HOLD CTA została rozbudowana z 24 do 48 klatek i nadal trwa pełne `2000 ms`,
 - sekwencja HOLD używa teraz dwóch atlasów po 24 klatki: `hold-ink-atlas-v0.1.20-r8.5-1.png` i `hold-ink-atlas-v0.1.20-r8.5-2.png`,
 - rozwój tuszu jest rozciągnięty na cały czas przytrzymania, dzięki czemu nie zamiera wizualnie po około `0.7 s`,

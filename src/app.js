@@ -35,8 +35,8 @@ const HOLD_INK_FRAMES_PER_ATLAS = 24;
 const HOLD_INK_ATLAS_COLUMNS = 6;
 const HOLD_INK_ATLAS_ROWS = 4;
 const HOLD_INK_ATLAS_PATHS = [
-  "../assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png",
-  "../assets/cta/hold-ink-atlas-v0.1.20-r8.5-2.png",
+  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png", document.baseURI).href,
+  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.5-2.png", document.baseURI).href,
 ];
 
 let entered = false;
@@ -252,7 +252,7 @@ function setHoldInkFeedback(progress) {
   const safeProgress = clamp(progress);
 
   if (!holdInk || safeProgress <= 0) {
-    if (holdInk) holdInk.style.backgroundImage = 'url("../assets/cta/hold-ink-atlas-v0.1.20-r8.5-1.png")';
+    if (holdInk) holdInk.style.removeProperty('background-image');
     enterButton.style.setProperty('--hold-ink-opacity', '0');
     enterButton.style.setProperty('--hold-ink-x', '0%');
     enterButton.style.setProperty('--hold-ink-y', '0%');
@@ -279,7 +279,11 @@ function setHoldInkFeedback(progress) {
     ? (row / (HOLD_INK_ATLAS_ROWS - 1)) * 100
     : 0;
 
-  holdInk.style.backgroundImage = `url("${HOLD_INK_ATLAS_PATHS[atlasIndex]}")`;
+  if (atlasIndex === 0) {
+    holdInk.style.removeProperty('background-image');
+  } else {
+    holdInk.style.backgroundImage = `url("${HOLD_INK_ATLAS_PATHS[atlasIndex]}")`;
+  }
   enterButton.style.setProperty('--hold-ink-x', `${x.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-y', `${y.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-opacity', '1');
