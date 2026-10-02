@@ -420,7 +420,24 @@ body.experience-started {
   height: 100svh;
   min-height: 100svh;
   overflow: hidden;
-  background: #e9dfd4;
+  isolation: isolate;
+  background: #0c0c0d;
+}
+
+/* Keeps the final blackout continuous, then softly reveals the story scene. */
+.story-camera::before {
+  content: "";
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  pointer-events: none;
+  background: #0c0c0d;
+  opacity: 1;
+  transition: opacity 900ms cubic-bezier(.45,0,.20,1);
+}
+
+.experience.is-story-ready .story-camera::before {
+  opacity: 0;
 }
 
 .story-stage {
@@ -429,9 +446,9 @@ body.experience-started {
   overflow: hidden;
   isolation: isolate;
   background: #ded1c4;
-  filter: brightness(.78) saturate(.92);
-  opacity: .94;
-  transition: filter .9s cubic-bezier(.22,.76,.22,1), opacity .7s ease;
+  filter: brightness(.88) saturate(.94);
+  opacity: 1;
+  transition: filter 1050ms cubic-bezier(.45,0,.20,1);
 }
 
 .experience.is-story-ready .story-stage {
@@ -449,8 +466,8 @@ body.experience-started {
   backface-visibility: hidden;
   will-change: transform;
   transition-property: transform;
-  transition-duration: 820ms;
-  transition-timing-function: cubic-bezier(.22,.76,.22,1);
+  transition-duration: 1280ms;
+  transition-timing-function: cubic-bezier(.45,0,.20,1);
 }
 
 .story-world__image {
@@ -497,8 +514,7 @@ body.experience-started {
   background: #eee7df;
   box-shadow: 0 -18px 44px rgba(37,28,22,.065);
   opacity: 0;
-  transform: translateY(9px);
-  transition: opacity .58s ease, transform .68s cubic-bezier(.22,.76,.22,1);
+  transition: opacity .62s ease;
 }
 
 .story-panel::before {
@@ -517,7 +533,6 @@ body.experience-started {
 
 .experience.is-story-ready .story-panel {
   opacity: 1;
-  transform: translateY(0);
 }
 
 .story-panel__meta,
@@ -531,7 +546,7 @@ body.experience-started {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  transition: opacity .18s ease, transform .28s cubic-bezier(.22,.76,.22,1);
+  transition: opacity .22s ease;
 }
 
 .story-panel__kicker {
@@ -575,7 +590,7 @@ body.experience-started {
 
 .story-panel__copy {
   min-width: 0;
-  transition: opacity .18s ease, transform .28s cubic-bezier(.22,.76,.22,1);
+  transition: opacity .22s ease;
 }
 
 .story-panel__copy h2 {
@@ -611,7 +626,7 @@ body.experience-started {
   background: rgba(238,231,225,.34);
   color: var(--ink);
   cursor: pointer;
-  transition: opacity .18s ease, transform .28s cubic-bezier(.22,.76,.22,1), background .2s ease;
+  transition: opacity .22s ease, background .2s ease, transform .2s ease;
 }
 
 .story-next span:not(.sr-only) {
@@ -635,7 +650,6 @@ body.experience-started {
 .story-panel.is-changing .story-panel__copy,
 .story-panel.is-changing .story-next {
   opacity: 0;
-  transform: translateY(7px);
 }
 
 @media (min-width: 760px) {

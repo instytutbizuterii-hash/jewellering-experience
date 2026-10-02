@@ -39,8 +39,9 @@ const HANDWRITING_START_DELAY = 340;
 const HOLD_INK_FRAME_COUNT = 24;
 const HOLD_INK_ATLAS_COLUMNS = 6;
 const HOLD_INK_ATLAS_ROWS = 4;
-const STORY_CAMERA_MS = reducedMotion ? 0 : 820;
-const STORY_PANEL_HIDE_MS = reducedMotion ? 0 : 150;
+const STORY_CAMERA_MS = reducedMotion ? 0 : 1280;
+const STORY_PANEL_HIDE_MS = reducedMotion ? 0 : 180;
+const STORY_REVEAL_MS = reducedMotion ? 0 : 900;
 const STORY_IMAGE_WIDTH = 1448;
 const STORY_IMAGE_HEIGHT = 1086;
 
@@ -102,6 +103,7 @@ let storyMoving = false;
 let storyBaseWidth = 0;
 let storyBaseHeight = 0;
 let storyTransitionTimer = 0;
+let storyRevealTimer = 0;
 
 function clearIntroTimers() {
   introTimers.forEach(window.clearTimeout);
@@ -306,7 +308,9 @@ function fitStoryCamera(animate = false) {
 
 function resetStoryCamera() {
   window.clearTimeout(storyTransitionTimer);
+  window.clearTimeout(storyRevealTimer);
   storyTransitionTimer = 0;
+  storyRevealTimer = 0;
   storyMoving = false;
   storyIndex = 0;
   storyPanel.classList.remove('is-changing');
@@ -366,11 +370,24 @@ function revealStoryCamera() {
   if (!entered) mountHistoryUnderMatte();
 
   document.body.classList.remove('is-transitioning');
-  if (themeColor) themeColor.setAttribute('content', '#eee7e1');
+  window.clearTimeout(storyRevealTimer);
+
   requestAnimationFrame(() => {
     fitStoryCamera(false);
     experience.classList.add('is-story-ready');
-    storyNext.disabled = false;
+
+    if (STORY_REVEAL_MS <= 0) {
+      if (themeColor) themeColor.setAttribute('content', '#eee7e1');
+      storyNext.disabled = false;
+      return;
+    }
+
+    storyRevealTimer = window.setTimeout(() => {
+      if (!entered) return;
+      if (themeColor) themeColor.setAttribute('content', '#eee7e1');
+      storyNext.disabled = false;
+      storyRevealTimer = 0;
+    }, STORY_REVEAL_MS);
   });
 }
 
