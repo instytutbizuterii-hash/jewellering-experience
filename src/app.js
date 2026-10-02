@@ -5,8 +5,6 @@ const experience = document.querySelector('#experience');
 const enterButton = document.querySelector('#enterButton');
 const holdInk = enterButton?.querySelector('.hold-button-ink');
 const themeColor = document.querySelector('meta[name="theme-color"]');
-const restartButton = document.querySelector('#restartButton');
-const blackout = document.querySelector('#blackout');
 const matteSprite = document.querySelector('#inkMatte');
 const matteFallback = document.querySelector('#matteFallback');
 
@@ -14,42 +12,96 @@ const wordmark = document.querySelector('#wordmark');
 const wordmarkStrokes = Array.from(document.querySelectorAll('.wordmark-stroke'));
 const wordmarkMarks = Array.from(document.querySelectorAll('.wordmark-mark'));
 
-const story = document.querySelector('#story');
-const storyHalo = document.querySelector('#storyHalo');
-const bloomStem = document.querySelector('#bloomStem');
-const bloomLeafOne = document.querySelector('#bloomLeafOne');
-const bloomLeafTwo = document.querySelector('#bloomLeafTwo');
-const bloomFlower = document.querySelector('#bloomFlower');
-const storyCopyOne = document.querySelector('#storyCopyOne');
-const storyCopyTwo = document.querySelector('#storyCopyTwo');
-const storyCopyThree = document.querySelector('#storyCopyThree');
-const scrollMarker = document.querySelector('#scrollMarker');
+const storyStage = document.querySelector('#storyStage');
+const storyWorld = document.querySelector('#storyWorld');
+const storyMasterImage = document.querySelector('#storyMasterImage');
+const storyPanel = document.querySelector('#storyPanel');
+const storyStep = document.querySelector('#storyStep');
+const storySection = document.querySelector('#storySection');
+const storyTitle = document.querySelector('#storyTitle');
+const storyText = document.querySelector('#storyText');
+const storyNext = document.querySelector('#storyNext');
+const storyNextIcon = document.querySelector('#storyNextIcon');
+const storyProgressDots = Array.from(document.querySelectorAll('#storyProgress span'));
+const storyImageReady = new Promise((resolve) => {
+  if (storyMasterImage.complete && storyMasterImage.naturalWidth > 0) {
+    resolve();
+    return;
+  }
+  storyMasterImage.addEventListener('load', resolve, { once: true });
+  storyMasterImage.addEventListener('error', resolve, { once: true });
+});
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const HANDWRITING_TARGET_DURATION = 3400;
 const HANDWRITING_START_DELAY = 340;
-const RESTART_BLACKOUT_DURATION = reducedMotion ? 0 : 500;
-const HOLD_INK_FRAME_COUNT = 48;
-const HOLD_INK_FRAMES_PER_ATLAS = 24;
+const HOLD_INK_FRAME_COUNT = 24;
 const HOLD_INK_ATLAS_COLUMNS = 6;
 const HOLD_INK_ATLAS_ROWS = 4;
-const HOLD_INK_ATLAS_PATHS = [
-  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.6-1.png", document.baseURI).href,
-  new URL("./assets/cta/hold-ink-atlas-v0.1.20-r8.6-2.png", document.baseURI).href,
+const STORY_CAMERA_MS = reducedMotion ? 0 : 820;
+const STORY_PANEL_HIDE_MS = reducedMotion ? 0 : 150;
+const STORY_IMAGE_WIDTH = 1448;
+const STORY_IMAGE_HEIGHT = 1086;
+
+/*
+ * The camera follows the approved non-linear path across one master scene.
+ * x/y are normalized focal points inside the 1448×1086 artwork.
+ */
+const STORY_STOPS = [
+  {
+    section: 'Historia',
+    title: 'Początek opowieści',
+    text: 'Każdy detal może stać się początkiem własnej historii.',
+    x: 0.23,
+    y: 0.78,
+    zoom: 1.42,
+  },
+  {
+    section: 'Inspiracja',
+    title: 'To, od czego wszystko się zaczyna',
+    text: 'Forma, wspomnienie i przypadkowy detal potrafią wyznaczyć kierunek.',
+    x: 0.36,
+    y: 0.15,
+    zoom: 1.38,
+  },
+  {
+    section: 'Nosisz po swojemu',
+    title: 'Blisko Ciebie',
+    text: 'Biżuteria zmienia się razem z osobą, która nadaje jej własny rytm.',
+    x: 0.61,
+    y: 0.28,
+    zoom: 1.45,
+  },
+  {
+    section: 'Ręcznie',
+    title: 'Detal, który zostaje',
+    text: 'Rzemiosło zostawia ślad — w proporcji, wykończeniu i drobnych decyzjach.',
+    x: 0.84,
+    y: 0.76,
+    zoom: 1.48,
+  },
+  {
+    section: 'Więcej niż biżuteria',
+    title: 'Mały symbol. Wielka historia.',
+    text: 'To, co nosimy, może znaczyć więcej niż sam przedmiot.',
+    x: 0.87,
+    y: 0.22,
+    zoom: 1.42,
+  },
 ];
 
 let entered = false;
-let scrollFrame = 0;
 let introRunId = 0;
 let introTimers = [];
-let bloomStemLength = 0;
 let handwritingPrepared = false;
 let handwritingStrokeData = [];
 let handwritingMarkData = [];
-let openingTimers = [];
-
-bloomStemLength = Math.max(bloomStem.getTotalLength(), 1);
+let storyIndex = 0;
+let storyMoving = false;
+let storyBaseWidth = 0;
+let storyBaseHeight = 0;
+let storyTransitionTimer = 0;
 
 function clearIntroTimers() {
   introTimers.forEach(window.clearTimeout);
@@ -119,7 +171,7 @@ function resetHandwritingGeometry() {
 }
 
 function revealCTAWhenReady(runId) {
-  matteTransition.ready().then(() => {
+  Promise.all([matteTransition.ready(), storyImageReady]).then(() => {
     if (runId !== introRunId || entered) return;
     intro.classList.add('is-cta-visible');
   });
@@ -184,29 +236,109 @@ function playIntroSequence() {
   }, HANDWRITING_START_DELAY, runId);
 }
 
-function clearOpeningTimers() {
-  openingTimers.forEach(window.clearTimeout);
-  openingTimers = [];
-}
+function renderStoryPanel(index) {
+  const stop = STORY_STOPS[index];
+  const step = String(index + 1).padStart(2, '0');
 
-function scheduleOpening(callback, delay) {
-  const timer = window.setTimeout(callback, reducedMotion ? 0 : delay);
-  openingTimers.push(timer);
-}
+  storyStep.textContent = step;
+  storySection.textContent = stop.section;
+  storyTitle.textContent = stop.title;
+  storyText.textContent = stop.text;
 
-function resetOpeningScene() {
-  clearOpeningTimers();
-  experience.classList.remove(
-    'is-opening-eyebrow-visible',
-    'is-opening-copy-visible',
-    'is-opening-note-visible',
-    'is-opening-halo-visible',
+  storyProgressDots.forEach((dot, dotIndex) => {
+    dot.classList.toggle('is-active', dotIndex === index);
+  });
+
+  const isLast = index === STORY_STOPS.length - 1;
+  storyNextIcon.textContent = isLast ? '↺' : '→';
+  storyNext.setAttribute(
+    'aria-label',
+    isLast ? 'Wróć do pierwszego kadru opowieści' : `Przejdź do kadru ${String(index + 2).padStart(2, '0')}`,
   );
+}
+
+function calculateStoryBaseSize() {
+  if (!storyStage) return false;
+
+  const rect = storyStage.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return false;
+
+  const cover = Math.max(
+    rect.width / STORY_IMAGE_WIDTH,
+    rect.height / STORY_IMAGE_HEIGHT,
+  );
+
+  storyBaseWidth = STORY_IMAGE_WIDTH * cover;
+  storyBaseHeight = STORY_IMAGE_HEIGHT * cover;
+  storyWorld.style.width = `${storyBaseWidth.toFixed(2)}px`;
+  storyWorld.style.height = `${storyBaseHeight.toFixed(2)}px`;
+  return true;
+}
+
+function applyStoryCamera(index, animate = true) {
+  if (!storyStage || !storyWorld) return;
+  if (!storyBaseWidth || !storyBaseHeight) {
+    if (!calculateStoryBaseSize()) return;
+  }
+
+  const stop = STORY_STOPS[index];
+  const rect = storyStage.getBoundingClientRect();
+  const scaledWidth = storyBaseWidth * stop.zoom;
+  const scaledHeight = storyBaseHeight * stop.zoom;
+  const targetX = rect.width * 0.5;
+  const targetY = rect.height * 0.48;
+
+  const desiredX = targetX - stop.x * scaledWidth;
+  const desiredY = targetY - stop.y * scaledHeight;
+  const x = clamp(desiredX, rect.width - scaledWidth, 0);
+  const y = clamp(desiredY, rect.height - scaledHeight, 0);
+
+  storyWorld.style.transitionDuration = (!animate || reducedMotion) ? '0ms' : `${STORY_CAMERA_MS}ms`;
+  storyWorld.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${stop.zoom})`;
+}
+
+function fitStoryCamera(animate = false) {
+  storyBaseWidth = 0;
+  storyBaseHeight = 0;
+  if (!calculateStoryBaseSize()) return;
+  applyStoryCamera(storyIndex, animate);
+}
+
+function resetStoryCamera() {
+  window.clearTimeout(storyTransitionTimer);
+  storyTransitionTimer = 0;
+  storyMoving = false;
+  storyIndex = 0;
+  storyPanel.classList.remove('is-changing');
+  storyNext.disabled = true;
+  renderStoryPanel(storyIndex);
+  requestAnimationFrame(() => fitStoryCamera(false));
+}
+
+function advanceStoryCamera() {
+  if (!entered || storyMoving || !experience.classList.contains('is-story-ready')) return;
+
+  storyMoving = true;
+  storyNext.disabled = true;
+  storyPanel.classList.add('is-changing');
+
+  const nextIndex = (storyIndex + 1) % STORY_STOPS.length;
+
+  storyTransitionTimer = window.setTimeout(() => {
+    storyIndex = nextIndex;
+    renderStoryPanel(storyIndex);
+    applyStoryCamera(storyIndex, true);
+
+    storyTransitionTimer = window.setTimeout(() => {
+      storyPanel.classList.remove('is-changing');
+      storyNext.disabled = false;
+      storyMoving = false;
+    }, STORY_CAMERA_MS + 35);
+  }, STORY_PANEL_HIDE_MS);
 }
 
 function prepareForNarrativeTransition() {
   clearIntroTimers();
-  clearOpeningTimers();
   introRunId += 1;
   document.body.classList.add('is-transitioning');
   if (themeColor) themeColor.setAttribute('content', '#0c0c0d');
@@ -216,28 +348,30 @@ function mountHistoryUnderMatte() {
   if (entered) return;
 
   entered = true;
-  resetOpeningScene();
   experience.hidden = false;
   intro.hidden = true;
+  experience.classList.remove('is-story-ready');
   document.body.classList.add('experience-started');
+  resetStoryCamera();
   window.scrollTo(0, 0);
+
   try {
     experience.focus({ preventScroll: true });
   } catch (_) {
     experience.focus();
   }
-  requestAnimationFrame(updateStory);
 }
 
-function revealHistoryOpening() {
+function revealStoryCamera() {
   if (!entered) mountHistoryUnderMatte();
 
   document.body.classList.remove('is-transitioning');
-
-  scheduleOpening(() => experience.classList.add('is-opening-eyebrow-visible'), 220);
-  scheduleOpening(() => experience.classList.add('is-opening-copy-visible'), 540);
-  scheduleOpening(() => experience.classList.add('is-opening-note-visible'), 980);
-  scheduleOpening(() => experience.classList.add('is-opening-halo-visible'), 1220);
+  if (themeColor) themeColor.setAttribute('content', '#eee7e1');
+  requestAnimationFrame(() => {
+    fitStoryCamera(false);
+    experience.classList.add('is-story-ready');
+    storyNext.disabled = false;
+  });
 }
 
 const matteTransition = window.createMatteTransition({
@@ -245,33 +379,25 @@ const matteTransition = window.createMatteTransition({
   fallback: matteFallback,
   reducedMotion,
   onNearBlack: mountHistoryUnderMatte,
-  onDone: revealHistoryOpening,
+  onDone: revealStoryCamera,
 });
 
 function setHoldInkFeedback(progress) {
   const safeProgress = clamp(progress);
 
   if (!holdInk || safeProgress <= 0) {
-    if (holdInk) holdInk.style.removeProperty('background-image');
     enterButton.style.setProperty('--hold-ink-opacity', '0');
     enterButton.style.setProperty('--hold-ink-x', '0%');
     enterButton.style.setProperty('--hold-ink-y', '0%');
     return;
   }
 
-  // 48 real HOLD frames over the same 2-second hold.
-  // Frames 1–24 are the original accepted r6 sequence; 25–48 are its approved continuation.
   const frameIndex = Math.min(
     HOLD_INK_FRAME_COUNT - 1,
-    Math.max(1, Math.floor(safeProgress * HOLD_INK_FRAME_COUNT)),
+    Math.max(1, Math.round(safeProgress * (HOLD_INK_FRAME_COUNT - 1))),
   );
-  const atlasIndex = Math.min(
-    Math.floor(frameIndex / HOLD_INK_FRAMES_PER_ATLAS),
-    HOLD_INK_ATLAS_PATHS.length - 1,
-  );
-  const atlasFrameIndex = frameIndex - atlasIndex * HOLD_INK_FRAMES_PER_ATLAS;
-  const column = atlasFrameIndex % HOLD_INK_ATLAS_COLUMNS;
-  const row = Math.floor(atlasFrameIndex / HOLD_INK_ATLAS_COLUMNS);
+  const column = frameIndex % HOLD_INK_ATLAS_COLUMNS;
+  const row = Math.floor(frameIndex / HOLD_INK_ATLAS_COLUMNS);
   const x = HOLD_INK_ATLAS_COLUMNS > 1
     ? (column / (HOLD_INK_ATLAS_COLUMNS - 1)) * 100
     : 0;
@@ -279,7 +405,6 @@ function setHoldInkFeedback(progress) {
     ? (row / (HOLD_INK_ATLAS_ROWS - 1)) * 100
     : 0;
 
-  holdInk.style.backgroundImage = `url("${HOLD_INK_ATLAS_PATHS[atlasIndex]}")`;
   enterButton.style.setProperty('--hold-ink-x', `${x.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-y', `${y.toFixed(4)}%`);
   enterButton.style.setProperty('--hold-ink-opacity', '1');
@@ -288,6 +413,7 @@ function setHoldInkFeedback(progress) {
 const holdCTA = window.createHoldCTA({
   trigger: enterButton,
   reducedMotion,
+  holdMs: reducedMotion ? 420 : 1000,
   canStart: () => (
     !entered
     && intro.classList.contains('is-cta-visible')
@@ -307,69 +433,15 @@ const holdCTA = window.createHoldCTA({
   },
 });
 
-function restartExperience() {
-  blackout.classList.add('is-active');
+storyNext.addEventListener('click', advanceStoryCamera);
+window.addEventListener('resize', () => {
+  if (!entered) return;
+  fitStoryCamera(false);
+});
 
-  window.setTimeout(() => {
-    window.scrollTo(0, 0);
-    resetOpeningScene();
-    experience.hidden = true;
-    intro.hidden = false;
-    document.body.classList.remove('experience-started', 'is-transitioning');
-    if (themeColor) themeColor.setAttribute('content', '#eee7e1');
-    entered = false;
-    matteTransition.reset();
-    holdCTA.reset();
-    setHoldInkFeedback(0);
-    playIntroSequence();
-
-    requestAnimationFrame(() => {
-      blackout.classList.remove('is-active');
-    });
-  }, RESTART_BLACKOUT_DURATION);
-}
-
-function updateStory() {
-  if (!story || experience.hidden) return;
-
-  const rect = story.getBoundingClientRect();
-  const scrollable = Math.max(rect.height - window.innerHeight, 1);
-  const progress = reducedMotion ? 1 : clamp((-rect.top) / scrollable);
-  const secondScene = clamp((progress - 0.28) / 0.22);
-  const thirdScene = clamp((progress - 0.58) / 0.2);
-  const bloom = clamp((progress - 0.32) / 0.68);
-  const bloomTwo = clamp((progress - 0.53) / 0.47);
-
-  storyHalo.style.opacity = String(0.22 + progress * 0.52);
-  bloomStem.style.strokeDasharray = String(bloomStemLength);
-  bloomStem.style.strokeDashoffset = String(bloomStemLength * (1 - progress));
-
-  bloomLeafOne.style.opacity = String(bloom);
-  bloomLeafOne.style.transform = `scale(${0.84 + bloom * 0.16})`;
-  bloomLeafTwo.style.opacity = String(bloomTwo);
-  bloomLeafTwo.style.transform = `scale(${0.82 + bloomTwo * 0.18})`;
-  bloomFlower.style.opacity = String(bloom);
-  bloomFlower.style.transform = `scale(${0.72 + bloom * 0.28})`;
-
-  storyCopyOne.style.opacity = String(1 - secondScene);
-  storyCopyOne.style.transform = `translateY(${secondScene * -26}px)`;
-
-  storyCopyTwo.style.opacity = String(secondScene * (1 - thirdScene));
-  storyCopyTwo.style.transform = `translateY(${30 - secondScene * 30 - thirdScene * 22}px)`;
-
-  storyCopyThree.style.opacity = String(thirdScene);
-  storyCopyThree.style.transform = `translateY(${28 - thirdScene * 28}px)`;
-
-  scrollMarker.style.transform = `scaleX(${0.08 + progress * 0.92})`;
-}
-
-function onScroll() {
-  cancelAnimationFrame(scrollFrame);
-  scrollFrame = requestAnimationFrame(updateStory);
-}
-
-restartButton.addEventListener('click', restartExperience);
-window.addEventListener('scroll', onScroll, { passive: true });
-window.addEventListener('resize', onScroll);
+storyMasterImage.addEventListener('load', () => {
+  if (!entered) return;
+  fitStoryCamera(false);
+});
 
 prepareWordmark();

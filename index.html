@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl" data-release="0.1.20-r8.6">
+<html lang="pl" data-release="0.1.20-r8.8">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -9,13 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&family=Manrope:wght@300;400;500&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
-  <link rel="preload" as="image" href="./assets/cta/hold-ink-atlas-v0.1.20-r8.6-1.png" />
-  <link rel="preload" as="image" href="./assets/cta/hold-ink-atlas-v0.1.20-r8.6-2.png" />
+  <link rel="preload" as="image" href="./assets/cta/hold-ink-atlas-v0.1.20-r6.png" />
   <link rel="preload" as="image" href="./assets/intro-paper/paper-fibers-v0.1.20-r8.png" />
   <link rel="preload" as="image" type="image/webp" href="./assets/intro-paper/intro-ink-full-left-v0.1.20-r8.2.webp" />
   <link rel="preload" as="image" type="image/webp" href="./assets/intro-paper/intro-ink-full-right-v0.1.20-r8.2.webp" />
   <link rel="preload" as="image" href="./assets/intro-paper/intro-ink-details-v0.1.20-r8.3.png" />
-  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r8.6" />
+  <link rel="preload" as="image" type="image/webp" href="./assets/story/master-scene-v0.1.20-r8.8.webp" />
+  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r8.8" />
 </head>
 <body>
   <section class="intro" id="intro" aria-label="Wprowadzenie do Biżufittingu">
@@ -68,71 +68,49 @@
     </div>
   </div>
   <div class="matte-fallback" id="matteFallback" aria-hidden="true"></div>
-  <div class="blackout" id="blackout" aria-hidden="true"></div>
-
   <main class="experience" id="experience" tabindex="-1" hidden>
-    <section class="dark-opening">
-      <div class="dark-opening-light" aria-hidden="true"></div>
-      <div class="dark-opening-content">
-        <p class="eyebrow eyebrow--light">HISTORIA / 01</p>
-        <h2>Każdy sposób noszenia<br />ma swoją historię.</h2>
-        <p class="dark-opening-note">Przewiń, aby ją odkryć.</p>
+    <section class="story-camera" id="storyCamera" aria-label="Interaktywna opowieść Biżufitting">
+      <div class="story-stage" id="storyStage" aria-hidden="true">
+        <div class="story-world" id="storyWorld">
+          <img
+            class="story-world__image"
+            id="storyMasterImage"
+            src="./assets/story/master-scene-v0.1.20-r8.8.webp"
+            width="1448"
+            height="1086"
+            alt=""
+            decoding="async"
+          />
+        </div>
+        <div class="story-stage__paper-fade" aria-hidden="true"></div>
       </div>
-    </section>
 
-    <section class="story" id="story">
-      <div class="story-sticky">
-        <div class="story-halo" id="storyHalo" aria-hidden="true"></div>
-
-        <svg class="bloom" viewBox="0 0 420 620" role="img" aria-label="Animowany line-art rozwijającego się kwiatu">
-          <path id="bloomStem" class="bloom-stem" d="M215 600 C218 510 201 430 218 346 C227 301 248 266 246 218 C245 180 227 146 233 94"></path>
-          <path id="bloomLeafOne" class="bloom-leaf" d="M213 430 C164 405 135 372 133 333 C174 343 204 366 218 402"></path>
-          <path id="bloomLeafTwo" class="bloom-leaf" d="M220 360 C272 337 302 303 305 263 C262 274 233 297 218 332"></path>
-          <g id="bloomFlower" class="bloom-flower">
-            <path d="M234 108 C198 87 186 52 207 28 C230 42 245 68 234 108Z"></path>
-            <path d="M235 109 C266 75 302 69 320 95 C299 116 269 126 235 109Z"></path>
-            <path d="M234 109 C272 117 291 147 279 176 C250 168 230 145 234 109Z"></path>
-            <path d="M233 109 C214 145 184 159 157 145 C170 117 196 101 233 109Z"></path>
-            <path d="M233 108 C195 109 169 88 168 58 C198 55 222 71 233 108Z"></path>
-            <circle cx="234" cy="109" r="16"></circle>
-          </g>
-        </svg>
-
-        <div class="story-copy story-copy--one" id="storyCopyOne">
-          <p class="eyebrow eyebrow--light">PERSPEKTYWA</p>
-          <h3>Biżuteria nie istnieje sama.</h3>
-          <p>Zmienia się razem z osobą, która ją nosi.</p>
+      <section class="story-panel" id="storyPanel" aria-live="polite">
+        <div class="story-panel__meta">
+          <p class="story-panel__kicker">
+            <span id="storyStep">01</span> / <span id="storySection">Historia</span>
+          </p>
+          <div class="story-progress" id="storyProgress" aria-hidden="true">
+            <span class="is-active"></span><span></span><span></span><span></span><span></span>
+          </div>
         </div>
 
-        <div class="story-copy story-copy--two" id="storyCopyTwo">
-          <p class="eyebrow eyebrow--light">RELACJA</p>
-          <h3>Proporcja. Rytm. Akcent.</h3>
-          <p>To, co dobrze wygląda w gablocie, nie zawsze musi być tym, co najlepiej opowiada o Tobie.</p>
+        <div class="story-panel__body">
+          <div class="story-panel__copy">
+            <h2 id="storyTitle">Początek opowieści</h2>
+            <p id="storyText">Każdy detal może stać się początkiem własnej historii.</p>
+          </div>
+
+          <button class="story-next" id="storyNext" type="button" aria-label="Przejdź do kolejnego kadru">
+            <span id="storyNextIcon" aria-hidden="true">→</span>
+          </button>
         </div>
-
-        <div class="story-copy story-copy--three" id="storyCopyThree">
-          <p class="eyebrow eyebrow--light">BIŻUFITTING</p>
-          <h3>Nie zaczynamy od produktu.</h3>
-          <p>Zaczynamy od Ciebie.</p>
-        </div>
-
-        <div class="scroll-marker" aria-hidden="true"><span id="scrollMarker"></span></div>
-      </div>
-    </section>
-
-    <section class="light-return">
-      <div class="light-return-inner">
-        <p class="eyebrow">BIŻUFITTING / 02</p>
-        <p class="light-return-script">To dopiero początek.</p>
-        <h2>Poznajemy sposób, w jaki nosisz biżuterię.</h2>
-        <p class="light-return-copy">Ta część będzie rozwijana razem z właściwą treścią Biżufittingu. Na tym etapie testujemy rytm, przejścia, typografię i zachowanie strony na telefonie.</p>
-        <button class="outline-button" id="restartButton" type="button">WRÓĆ NA POCZĄTEK</button>
-      </div>
+      </section>
     </section>
   </main>
 
-  <script src="./src/hold-cta.js?v=0.1.20-r8.6" defer></script>
-  <script src="./src/matte-transition.js?v=0.1.20-r8.6" defer></script>
-  <script src="./src/app.js?v=0.1.20-r8.6" defer></script>
+  <script src="./src/hold-cta.js?v=0.1.20-r8.8" defer></script>
+  <script src="./src/matte-transition.js?v=0.1.20-r8.8" defer></script>
+  <script src="./src/app.js?v=0.1.20-r8.8" defer></script>
 </body>
 </html>
