@@ -9,8 +9,37 @@ const matteSprite = document.querySelector('#inkMatte');
 const matteFallback = document.querySelector('#matteFallback');
 
 const wordmark = document.querySelector('#wordmark');
-const wordmarkStrokes = Array.from(document.querySelectorAll('.wordmark-stroke'));
-const wordmarkMarks = Array.from(document.querySelectorAll('.wordmark-mark'));
+const wordmarkStrokes = Array.from(document.querySelectorAll('.wordmark-reveal-path'));
+const wordmarkMarks = Array.from(document.querySelectorAll('.wordmark-reveal-mark'));
+const wordmarkArtwork = document.querySelector('#wordmarkArtwork');
+
+const wordmarkArtworkReady = (() => {
+  const src = wordmarkArtwork?.getAttribute('href');
+  if (!src) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const preloader = new Image();
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const decodeAndFinish = () => {
+      if (typeof preloader.decode !== 'function') {
+        done();
+        return;
+      }
+      preloader.decode().catch(() => {}).finally(done);
+    };
+
+    preloader.addEventListener('load', decodeAndFinish, { once: true });
+    preloader.addEventListener('error', done, { once: true });
+    preloader.src = src;
+
+    if (preloader.complete && preloader.naturalWidth > 0) decodeAndFinish();
+  });
+})();
 
 const storyStage = document.querySelector('#storyStage');
 const storyWorld = document.querySelector('#storyWorld');
@@ -461,4 +490,4 @@ storyMasterImage.addEventListener('load', () => {
   fitStoryCamera(false);
 });
 
-prepareWordmark();
+wordmarkArtworkReady.then(() => prepareWordmark());

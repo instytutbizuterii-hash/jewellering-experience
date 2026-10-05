@@ -158,28 +158,8 @@ button { font: inherit; }
 .wordmark.is-prepared { opacity: 1; }
 
 .wordmark-artwork {
-  opacity: 1;
   pointer-events: none;
 }
-
-.wordmark-reveal {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 104px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.wordmark-stroke {
-  fill: none;
-  stroke: inherit;
-  stroke-width: inherit;
-  stroke-linecap: inherit;
-  stroke-linejoin: inherit;
-}
-
-.wordmark-stroke--fine { stroke-width: 72px; }
-.wordmark-mark { fill: #fff; opacity: 0; }
 
 .intro-copy {
   display: flex;
@@ -720,8 +700,6 @@ body.experience-started {
     transition-duration: .01ms !important;
   }
 
-  .wordmark-stroke { stroke-dashoffset: 0 !important; }
-  .wordmark-mark { opacity: 1 !important; }
   .intro-copy-line,
   .enter-button { transform: none; }
   .story-world { transition: none !important; }

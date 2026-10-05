@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl" data-release="0.1.20-r8.10">
+<html lang="pl" data-release="0.1.20-r8.11">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -14,9 +14,9 @@
   <link rel="preload" as="image" type="image/webp" href="./assets/intro-paper/intro-ink-full-left-v0.1.20-r8.2.webp" />
   <link rel="preload" as="image" type="image/webp" href="./assets/intro-paper/intro-ink-full-right-v0.1.20-r8.2.webp" />
   <link rel="preload" as="image" href="./assets/intro-paper/intro-ink-details-v0.1.20-r8.3.png" />
-  <link rel="preload" as="image" href="./assets/wordmark/bizufitting-calligraphy-v0.1.20-r8.10.png" />
+  <link rel="preload" as="image" href="./assets/wordmark/bizufitting-calligraphy-v0.1.20-r8.11.png" />
   <link rel="preload" as="image" type="image/webp" href="./assets/story/master-scene-v0.1.20-r8.8.webp" />
-  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r8.10" />
+  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r8.11" />
 </head>
 <body>
   <section class="intro" id="intro" aria-label="Wprowadzenie do Biżufittingu">
@@ -25,44 +25,61 @@
     <div class="intro-content">
       <h1 class="intro-title">
         <span class="sr-only">Biżufitting</span>
-        <svg class="wordmark" id="wordmark" viewBox="0 0 1983 697" role="presentation" aria-hidden="true" focusable="false">
+        <svg class="wordmark" id="wordmark" viewBox="70 70 1960 620" role="presentation" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet">
           <defs>
-            <mask id="wordmarkRevealMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1983" height="697">
-              <rect width="1983" height="697" fill="#000" />
-              <g class="wordmark-reveal">
-                <!-- B: wejście, pion i oba łuki -->
-                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.000" data-end="0.105" d="M55 262 C105 205 220 145 338 108 C412 84 478 96 480 145 C482 194 433 235 330 260" />
-                <path class="wordmark-stroke" data-start="0.040" data-end="0.185" d="M346 55 C305 150 266 275 210 397 C177 468 120 500 66 474" />
-                <path class="wordmark-stroke" data-start="0.125" data-end="0.285" d="M225 272 C360 245 459 254 478 323 C496 391 408 451 294 477 C189 500 82 514 60 470" />
-
-                <!-- i ż u -->
-                <path class="wordmark-stroke" data-start="0.270" data-end="0.350" d="M507 276 C496 321 475 371 497 397 C519 420 549 394 573 344" />
-                <circle class="wordmark-mark" data-start="0.338" data-end="0.360" data-radius="24" cx="530" cy="205" r="24" />
-                <path class="wordmark-stroke" data-start="0.335" data-end="0.440" d="M570 395 C610 352 664 315 700 299 C687 344 642 388 588 406 C650 395 710 395 758 399" />
-                <circle class="wordmark-mark" data-start="0.425" data-end="0.448" data-radius="24" cx="636" cy="213" r="24" />
-                <path class="wordmark-stroke" data-start="0.420" data-end="0.525" d="M758 288 C748 334 733 389 758 405 C790 425 834 386 863 301 C850 359 834 410 870 408 C904 407 928 365 942 315" />
-
-                <!-- f + poprzeczka -->
-                <path class="wordmark-stroke" data-start="0.500" data-end="0.655" d="M935 412 C957 359 974 281 990 205 C1009 115 1058 44 1105 70 C1142 92 1119 159 1070 211 C1017 267 983 307 967 364 C951 420 967 489 933 542 C914 571 886 558 886 526 C887 489 923 459 986 439" />
-                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.585" data-end="0.642" d="M929 253 C985 249 1043 246 1104 245" />
-
-                <!-- i + tt -->
-                <path class="wordmark-stroke" data-start="0.635" data-end="0.708" d="M1128 279 C1114 330 1092 388 1113 405 C1138 423 1166 390 1188 321" />
-                <circle class="wordmark-mark" data-start="0.696" data-end="0.720" data-radius="24" cx="1101" cy="203" r="24" />
-                <path class="wordmark-stroke" data-start="0.690" data-end="0.785" d="M1198 390 C1227 350 1244 287 1267 210 C1286 145 1307 133 1304 188 C1301 246 1261 330 1256 382 C1252 420 1275 422 1302 390" />
-                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.745" data-end="0.790" d="M1190 257 C1252 254 1303 251 1360 250" />
-                <path class="wordmark-stroke" data-start="0.755" data-end="0.850" d="M1300 390 C1328 350 1347 286 1368 210 C1385 151 1405 139 1404 190 C1402 246 1363 329 1358 382 C1354 420 1378 420 1405 390" />
-                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.810" data-end="0.852" d="M1294 257 C1350 254 1393 253 1430 250" />
-
-                <!-- i n g -->
-                <path class="wordmark-stroke" data-start="0.835" data-end="0.900" d="M1410 284 C1398 331 1380 389 1403 405 C1428 421 1456 389 1478 322" />
-                <circle class="wordmark-mark" data-start="0.888" data-end="0.912" data-radius="24" cx="1413" cy="199" r="24" />
-                <path class="wordmark-stroke" data-start="0.895" data-end="0.955" d="M1475 395 C1500 357 1525 306 1548 302 C1578 296 1572 346 1566 383 C1562 413 1580 423 1603 405 C1627 386 1644 339 1654 303" />
-                <path class="wordmark-stroke" data-start="0.935" data-end="1.000" d="M1648 397 C1679 359 1703 304 1738 278 C1772 253 1817 254 1830 287 C1842 319 1818 369 1781 390 C1749 409 1718 401 1722 374 C1726 344 1766 318 1811 321 C1844 324 1852 350 1846 387 C1837 443 1821 510 1789 570 C1758 629 1703 655 1661 633 C1618 610 1628 560 1662 521 C1697 481 1764 450 1848 419 C1905 398 1944 392 1972 395" />
-              </g>
+            <clipPath id="wordmark-clip-G1"><rect x="58" y="88" width="500" height="250" /></clipPath>
+            <clipPath id="wordmark-clip-G2"><rect x="52" y="82" width="520" height="520" /></clipPath>
+            <clipPath id="wordmark-clip-G3a"><rect x="465" y="270" width="168" height="205" /></clipPath>
+            <clipPath id="wordmark-clip-G3b"><rect x="578" y="274" width="200" height="188" /></clipPath>
+            <clipPath id="wordmark-clip-G3c"><rect x="716" y="272" width="272" height="200" /></clipPath>
+            <clipPath id="wordmark-clip-G4"><rect x="902" y="48" width="295" height="585" /></clipPath>
+            <clipPath id="wordmark-clip-G5a"><rect x="1048" y="268" width="205" height="205" /></clipPath>
+            <clipPath id="wordmark-clip-G5b"><rect x="1178" y="178" width="172" height="300" /></clipPath>
+            <clipPath id="wordmark-clip-G5c"><rect x="1260" y="176" width="190" height="302" /></clipPath>
+            <clipPath id="wordmark-clip-G5d"><rect x="1372" y="270" width="160" height="205" /></clipPath>
+            <clipPath id="wordmark-clip-G5e"><rect x="1445" y="270" width="255" height="210" /></clipPath>
+            <clipPath id="wordmark-clip-G6a"><rect x="1616" y="240" width="280" height="250" /></clipPath>
+            <clipPath id="wordmark-clip-G6b"><rect x="1518" y="406" width="370" height="315" /></clipPath>
+            <clipPath id="wordmark-clip-G6c"><rect x="1752" y="382" width="296" height="156" /></clipPath>
+            <clipPath id="wordmark-clip-G7"><rect x="916" y="244" width="548" height="80" /></clipPath>
+            <mask id="wordmarkReveal" x="0" y="0" width="2048" height="740" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" style="mask-type:luminance">
+              <rect width="2048" height="740" fill="black" />
+            <path class="wordmark-reveal-path" data-id="G1" data-start="0.000000" data-end="0.064706" d="M120 300 C165 246 235 202 315 166 C374 140 426 128 470 139 C505 148 523 169 520 196 C516 228 480 253 432 271 C390 287 345 298 303 302" fill="none" stroke="white" stroke-width="82" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G1)" />
+            <path class="wordmark-reveal-path" data-id="G2" data-start="0.064706" data-end="0.161765" d="M405 104 C370 165 337 245 301 331 C266 416 224 486 174 518 C145 537 114 540 96 520 C125 541 202 530 286 511 C376 491 451 467 491 421 C519 389 529 353 511 329 C493 307 450 292 404 292 C371 293 339 298 307 304" fill="none" stroke="white" stroke-width="112" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G2)" />
+            <path class="wordmark-reveal-path" data-id="G3a" data-start="0.161765" data-end="0.194118" d="M500 404 C524 397 536 365 546 330 C553 305 559 291 568 301 C579 315 571 348 563 377 C558 399 566 422 584 433 C594 439 603 432 611 422" fill="none" stroke="white" stroke-width="104" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G3a)" />
+            <path class="wordmark-reveal-path" data-id="G3b" data-start="0.194118" data-end="0.241176" d="M607 423 C628 410 643 381 660 351 C678 320 699 305 723 309 C744 312 754 326 744 342 C732 361 706 378 678 395 C700 394 724 396 746 401" fill="none" stroke="white" stroke-width="82" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G3b)" />
+            <path class="wordmark-reveal-path" data-id="G3c" data-start="0.241176" data-end="0.291176" d="M742 400 C774 407 794 399 807 373 C820 348 828 313 842 302 C853 294 860 305 855 326 C849 351 837 382 838 402 C840 421 853 433 870 432 C894 430 910 401 921 372 C932 343 938 318 945 309" fill="none" stroke="white" stroke-width="106" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G3c)" />
+            <path class="wordmark-reveal-path" data-id="G4" data-start="0.291176" data-end="0.397059" d="M1001 579 C979 543 974 493 982 439 C992 365 1012 285 1042 202 C1061 150 1083 99 1107 82 C1122 71 1137 83 1141 103 C1146 131 1129 166 1101 198 C1074 229 1049 251 1031 278 C1012 306 1004 340 1005 381 C1006 420 1015 458 1010 495 C1005 537 991 571 972 588 C958 600 947 592 947 576" fill="none" stroke="white" stroke-width="118" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G4)" />
+            <path class="wordmark-reveal-path" data-id="G5a" data-start="0.397059" data-end="0.441176" d="M1098 411 C1120 405 1132 376 1141 343 C1149 314 1155 295 1164 303 C1176 315 1166 347 1158 379 C1152 402 1157 421 1174 426 C1194 432 1210 412 1220 385 C1225 370 1229 357 1233 347" fill="none" stroke="white" stroke-width="106" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G5a)" />
+            <path class="wordmark-reveal-path" data-id="G5b" data-start="0.441176" data-end="0.491176" d="M1232 352 C1240 322 1248 282 1258 219 C1261 199 1265 198 1266 219 C1268 252 1258 305 1248 354 C1240 393 1239 418 1257 427 C1275 436 1292 416 1303 386 C1307 375 1311 364 1315 353" fill="none" stroke="white" stroke-width="94" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G5b)" />
+            <path class="wordmark-reveal-path" data-id="G5c" data-start="0.491176" data-end="0.541176" d="M1310 365 C1327 339 1338 306 1348 271 C1358 236 1366 206 1372 198 C1379 210 1375 244 1368 283 C1360 327 1350 374 1348 399 C1347 420 1358 431 1375 430 C1394 429 1407 407 1416 379 C1419 368 1423 357 1427 348" fill="none" stroke="white" stroke-width="92" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G5c)" />
+            <path class="wordmark-reveal-path" data-id="G5d" data-start="0.541176" data-end="0.579412" d="M1417 366 C1427 335 1438 303 1450 295 C1460 289 1467 300 1463 318 C1459 339 1449 366 1447 390 C1446 412 1458 431 1476 431 C1488 431 1498 421 1507 404" fill="none" stroke="white" stroke-width="84" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G5d)" />
+            <path class="wordmark-reveal-path" data-id="G5e" data-start="0.579412" data-end="0.641176" d="M1498 407 C1516 384 1526 350 1536 319 C1546 289 1558 282 1570 296 C1582 310 1578 340 1571 365 C1565 388 1561 410 1564 426 C1572 397 1583 367 1598 340 C1614 311 1630 294 1647 294 C1668 294 1683 312 1684 333 C1685 346 1681 358 1676 368" fill="none" stroke="white" stroke-width="112" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G5e)" />
+            <path class="wordmark-reveal-path" data-id="G6a" data-start="0.641176" data-end="0.711765" d="M1674 368 C1680 337 1695 311 1718 295 C1742 278 1772 273 1795 283 C1824 296 1839 323 1838 350 C1837 378 1819 402 1795 415 C1773 427 1745 426 1725 413 C1706 401 1698 380 1705 360 C1712 340 1731 324 1752 321 C1775 317 1797 328 1807 346 C1819 367 1814 399 1803 430 C1798 444 1794 456 1791 466" fill="none" stroke="white" stroke-width="116" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G6a)" />
+            <path class="wordmark-reveal-path" data-id="G6b" data-start="0.711765" data-end="0.800000" d="M1793 455 C1784 492 1774 536 1752 579 C1732 619 1705 650 1674 665 C1642 680 1610 670 1598 644 C1586 618 1599 586 1629 558 C1665 524 1720 490 1800 461" fill="none" stroke="white" stroke-width="92" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G6b)" />
+            <path class="wordmark-reveal-path" data-id="G6c" data-start="0.800000" data-end="0.852941" d="M1797 463 C1840 443 1887 430 1930 421 C1970 413 2005 411 2030 418" fill="none" stroke="white" stroke-width="78" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G6c)" />
+            <path class="wordmark-reveal-path" data-id="G7" data-start="0.852941" data-end="0.929412" d="M968 292 C1040 283 1119 284 1198 287 C1274 290 1350 287 1430 279" fill="none" stroke="white" stroke-width="66" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#wordmark-clip-G7)" />
+            <circle cx="590" cy="242" r="36" fill="black" />
+            <circle cx="695" cy="250" r="36" fill="black" />
+            <circle cx="1162" cy="242" r="36" fill="black" />
+            <circle cx="1475" cy="240" r="36" fill="black" />
+            <circle class="wordmark-reveal-mark" data-id="M1" data-start="0.929412" data-end="0.947059" data-radius="49" cx="590" cy="242" r="0" fill="white" />
+            <circle class="wordmark-reveal-mark" data-id="M2" data-start="0.947059" data-end="0.964706" data-radius="49" cx="695" cy="250" r="0" fill="white" />
+            <circle class="wordmark-reveal-mark" data-id="M3" data-start="0.964706" data-end="0.982353" data-radius="49" cx="1162" cy="242" r="0" fill="white" />
+            <circle class="wordmark-reveal-mark" data-id="M4" data-start="0.982353" data-end="1.000000" data-radius="49" cx="1475" cy="240" r="0" fill="white" />
             </mask>
           </defs>
-          <image class="wordmark-artwork" href="./assets/wordmark/bizufitting-calligraphy-v0.1.20-r8.10.png" x="0" y="0" width="1983" height="697" preserveAspectRatio="xMidYMid meet" mask="url(#wordmarkRevealMask)" />
+          <image
+            class="wordmark-artwork"
+            id="wordmarkArtwork"
+            href="./assets/wordmark/bizufitting-calligraphy-v0.1.20-r8.11.png"
+            x="0"
+            y="0"
+            width="2048"
+            height="740"
+            preserveAspectRatio="none"
+            mask="url(#wordmarkReveal)"
+          />
         </svg>
       </h1>
 
@@ -135,8 +152,8 @@
     </section>
   </main>
 
-  <script src="./src/hold-cta.js?v=0.1.20-r8.10" defer></script>
-  <script src="./src/matte-transition.js?v=0.1.20-r8.10" defer></script>
-  <script src="./src/app.js?v=0.1.20-r8.10" defer></script>
+  <script src="./src/hold-cta.js?v=0.1.20-r8.11" defer></script>
+  <script src="./src/matte-transition.js?v=0.1.20-r8.11" defer></script>
+  <script src="./src/app.js?v=0.1.20-r8.11" defer></script>
 </body>
 </html>
