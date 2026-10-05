@@ -157,10 +157,15 @@ button { font: inherit; }
 
 .wordmark.is-prepared { opacity: 1; }
 
-.wordmark-lettering {
+.wordmark-artwork {
+  opacity: 1;
+  pointer-events: none;
+}
+
+.wordmark-reveal {
   fill: none;
-  stroke: var(--ink);
-  stroke-width: 7;
+  stroke: #fff;
+  stroke-width: 104px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -173,8 +178,8 @@ button { font: inherit; }
   stroke-linejoin: inherit;
 }
 
-.wordmark-stroke--secondary { stroke-width: 8.4; }
-.wordmark-mark { fill: var(--ink); opacity: 0; }
+.wordmark-stroke--fine { stroke-width: 72px; }
+.wordmark-mark { fill: #fff; opacity: 0; }
 
 .intro-copy {
   display: flex;

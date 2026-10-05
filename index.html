@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl" data-release="0.1.20-r8.9">
+<html lang="pl" data-release="0.1.20-r8.10">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -14,8 +14,9 @@
   <link rel="preload" as="image" type="image/webp" href="./assets/intro-paper/intro-ink-full-left-v0.1.20-r8.2.webp" />
   <link rel="preload" as="image" type="image/webp" href="./assets/intro-paper/intro-ink-full-right-v0.1.20-r8.2.webp" />
   <link rel="preload" as="image" href="./assets/intro-paper/intro-ink-details-v0.1.20-r8.3.png" />
+  <link rel="preload" as="image" href="./assets/wordmark/bizufitting-calligraphy-v0.1.20-r8.10.png" />
   <link rel="preload" as="image" type="image/webp" href="./assets/story/master-scene-v0.1.20-r8.8.webp" />
-  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r8.9" />
+  <link rel="stylesheet" href="./src/styles.css?v=0.1.20-r8.10" />
 </head>
 <body>
   <section class="intro" id="intro" aria-label="Wprowadzenie do Biżufittingu">
@@ -24,19 +25,44 @@
     <div class="intro-content">
       <h1 class="intro-title">
         <span class="sr-only">Biżufitting</span>
-        <svg class="wordmark" id="wordmark" viewBox="34 26 690 184" role="presentation" aria-hidden="true" focusable="false">
-          <g class="wordmark-lettering">
-            <path class="wordmark-stroke" data-start="0.000" data-end="0.065" d="M42 78 C50 54 76 39 107 42" />
-            <path class="wordmark-stroke" data-start="0.045" data-end="0.145" d="M104 38 C93 57 84 84 79 112 C74 139 67 155 57 162" />
-            <path class="wordmark-stroke" data-start="0.110" data-end="0.285" d="M79 72 C94 52 122 46 140 54 C153 60 155 72 146 83 C137 92 119 97 96 98 C122 96 147 101 151 116 C155 133 141 146 121 151 C103 156 84 153 70 146" />
-            <path class="wordmark-stroke" data-start="0.245" data-end="0.845" d="M151 145 C164 145 168 130 171 112 C174 96 180 88 184 93 C188 99 181 118 178 133 C176 143 181 149 190 145 C199 141 204 127 210 113 C215 101 221 94 234 94 C246 94 252 99 248 106 C243 114 225 126 212 138 C226 136 241 136 255 139 C264 141 269 137 274 129 C279 120 282 107 285 97 C289 88 296 90 296 99 C295 112 287 129 287 139 C287 147 294 151 303 147 C315 141 321 124 326 106 C329 95 335 88 339 94 C343 101 336 122 334 136 C333 145 338 150 347 147 C358 143 363 130 366 116 C370 96 368 75 372 58 C376 42 385 32 395 35 C407 39 403 56 397 67 C391 79 381 87 374 94 C368 101 365 112 364 125 C363 139 369 148 380 146 C391 144 397 129 402 111 C406 96 412 88 417 93 C422 99 414 119 411 133 C408 145 414 150 425 146 C436 142 441 128 445 111 C449 94 451 78 455 69 C459 61 465 62 467 69 C469 80 460 100 457 119 C454 137 459 148 470 146 C481 144 486 129 490 111 C494 94 496 78 500 69 C504 61 510 62 512 69 C514 81 505 101 502 120 C499 138 504 149 515 146 C526 144 532 129 537 111 C541 96 547 88 552 93 C557 99 549 119 546 133 C543 145 549 150 560 146 C571 142 576 128 580 112 C583 100 588 91 593 94 C599 97 596 108 592 119 C600 105 611 94 622 94 C634 94 637 103 633 115 L627 136 C625 144 629 149 639 146 C650 143 656 133 661 119 C666 104 675 95 687 96 C701 97 706 108 701 122 C697 134 688 141 678 141 C667 141 662 134 664 124 C666 114 675 106 687 104 C697 103 704 109 703 118 C700 133 694 148 689 162 C684 179 679 194 668 198 C658 202 649 196 651 187 C654 174 668 165 686 156" />
-            <circle class="wordmark-mark" data-start="0.855" data-end="0.878" data-radius="4.2" cx="184.5" cy="72.5" r="4.2" />
-            <circle class="wordmark-mark" data-start="0.878" data-end="0.901" data-radius="4.2" cx="235.5" cy="72.5" r="4.2" />
-            <path class="wordmark-stroke wordmark-stroke--secondary" data-start="0.901" data-end="0.926" d="M350 92 C364 89 378 89 392 91" />
-            <circle class="wordmark-mark" data-start="0.926" data-end="0.949" data-radius="4.2" cx="417.5" cy="72.5" r="4.2" />
-            <path class="wordmark-stroke wordmark-stroke--secondary" data-start="0.949" data-end="0.980" d="M438 101 C462 98 491 98 518 101" />
-            <circle class="wordmark-mark" data-start="0.980" data-end="1.000" data-radius="4.2" cx="552.5" cy="72.5" r="4.2" />
-          </g>
+        <svg class="wordmark" id="wordmark" viewBox="0 0 1983 697" role="presentation" aria-hidden="true" focusable="false">
+          <defs>
+            <mask id="wordmarkRevealMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1983" height="697">
+              <rect width="1983" height="697" fill="#000" />
+              <g class="wordmark-reveal">
+                <!-- B: wejście, pion i oba łuki -->
+                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.000" data-end="0.105" d="M55 262 C105 205 220 145 338 108 C412 84 478 96 480 145 C482 194 433 235 330 260" />
+                <path class="wordmark-stroke" data-start="0.040" data-end="0.185" d="M346 55 C305 150 266 275 210 397 C177 468 120 500 66 474" />
+                <path class="wordmark-stroke" data-start="0.125" data-end="0.285" d="M225 272 C360 245 459 254 478 323 C496 391 408 451 294 477 C189 500 82 514 60 470" />
+
+                <!-- i ż u -->
+                <path class="wordmark-stroke" data-start="0.270" data-end="0.350" d="M507 276 C496 321 475 371 497 397 C519 420 549 394 573 344" />
+                <circle class="wordmark-mark" data-start="0.338" data-end="0.360" data-radius="24" cx="530" cy="205" r="24" />
+                <path class="wordmark-stroke" data-start="0.335" data-end="0.440" d="M570 395 C610 352 664 315 700 299 C687 344 642 388 588 406 C650 395 710 395 758 399" />
+                <circle class="wordmark-mark" data-start="0.425" data-end="0.448" data-radius="24" cx="636" cy="213" r="24" />
+                <path class="wordmark-stroke" data-start="0.420" data-end="0.525" d="M758 288 C748 334 733 389 758 405 C790 425 834 386 863 301 C850 359 834 410 870 408 C904 407 928 365 942 315" />
+
+                <!-- f + poprzeczka -->
+                <path class="wordmark-stroke" data-start="0.500" data-end="0.655" d="M935 412 C957 359 974 281 990 205 C1009 115 1058 44 1105 70 C1142 92 1119 159 1070 211 C1017 267 983 307 967 364 C951 420 967 489 933 542 C914 571 886 558 886 526 C887 489 923 459 986 439" />
+                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.585" data-end="0.642" d="M929 253 C985 249 1043 246 1104 245" />
+
+                <!-- i + tt -->
+                <path class="wordmark-stroke" data-start="0.635" data-end="0.708" d="M1128 279 C1114 330 1092 388 1113 405 C1138 423 1166 390 1188 321" />
+                <circle class="wordmark-mark" data-start="0.696" data-end="0.720" data-radius="24" cx="1101" cy="203" r="24" />
+                <path class="wordmark-stroke" data-start="0.690" data-end="0.785" d="M1198 390 C1227 350 1244 287 1267 210 C1286 145 1307 133 1304 188 C1301 246 1261 330 1256 382 C1252 420 1275 422 1302 390" />
+                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.745" data-end="0.790" d="M1190 257 C1252 254 1303 251 1360 250" />
+                <path class="wordmark-stroke" data-start="0.755" data-end="0.850" d="M1300 390 C1328 350 1347 286 1368 210 C1385 151 1405 139 1404 190 C1402 246 1363 329 1358 382 C1354 420 1378 420 1405 390" />
+                <path class="wordmark-stroke wordmark-stroke--fine" data-start="0.810" data-end="0.852" d="M1294 257 C1350 254 1393 253 1430 250" />
+
+                <!-- i n g -->
+                <path class="wordmark-stroke" data-start="0.835" data-end="0.900" d="M1410 284 C1398 331 1380 389 1403 405 C1428 421 1456 389 1478 322" />
+                <circle class="wordmark-mark" data-start="0.888" data-end="0.912" data-radius="24" cx="1413" cy="199" r="24" />
+                <path class="wordmark-stroke" data-start="0.895" data-end="0.955" d="M1475 395 C1500 357 1525 306 1548 302 C1578 296 1572 346 1566 383 C1562 413 1580 423 1603 405 C1627 386 1644 339 1654 303" />
+                <path class="wordmark-stroke" data-start="0.935" data-end="1.000" d="M1648 397 C1679 359 1703 304 1738 278 C1772 253 1817 254 1830 287 C1842 319 1818 369 1781 390 C1749 409 1718 401 1722 374 C1726 344 1766 318 1811 321 C1844 324 1852 350 1846 387 C1837 443 1821 510 1789 570 C1758 629 1703 655 1661 633 C1618 610 1628 560 1662 521 C1697 481 1764 450 1848 419 C1905 398 1944 392 1972 395" />
+              </g>
+            </mask>
+          </defs>
+          <image class="wordmark-artwork" href="./assets/wordmark/bizufitting-calligraphy-v0.1.20-r8.10.png" x="0" y="0" width="1983" height="697" preserveAspectRatio="xMidYMid meet" mask="url(#wordmarkRevealMask)" />
         </svg>
       </h1>
 
@@ -109,8 +135,8 @@
     </section>
   </main>
 
-  <script src="./src/hold-cta.js?v=0.1.20-r8.9" defer></script>
-  <script src="./src/matte-transition.js?v=0.1.20-r8.9" defer></script>
-  <script src="./src/app.js?v=0.1.20-r8.9" defer></script>
+  <script src="./src/hold-cta.js?v=0.1.20-r8.10" defer></script>
+  <script src="./src/matte-transition.js?v=0.1.20-r8.10" defer></script>
+  <script src="./src/app.js?v=0.1.20-r8.10" defer></script>
 </body>
 </html>
