@@ -157,7 +157,7 @@ button { font: inherit; }
 
 .wordmark.is-prepared { opacity: 1; }
 
-.wordmark #pen-layers,
+.wordmark #animated-artwork,
 .wordmark #final-lock { pointer-events: none; }
 
 .intro-copy {

@@ -1,26 +1,21 @@
 # Biżufitting Experience
 
-Wersja: **0.1.20** — kandydat **r8.13**, cache token `0.1.20-r8.13`.
+Wersja wykonawcza: **0.1.20-r8.14 candidate**.
 
-Baza: zaakceptowane r8.9 + integracja zaakceptowanego izolowanego wordmarku `real-pen-v2`.
+Baza tej paczki: przesłany `r8.13 Stage 4 choreography`. Kandydat r8.14 zmienia wyłącznie mechanizm animacji wordmarku oraz token wersji. HOLD, matte, intro stains, assety i Story Camera pozostają bez zmian.
 
-## r8.13 — Stage 3 / wordmark integration candidate
-- stary monoline wordmark i animator `strokeDashoffset` zostały usunięte z runtime,
-- intro używa teraz prawdziwego kaligraficznego SVG z 24 fizycznymi fazami pióra,
-- animacja trwa `6134.6 ms` i używa tego samego przebiegu co zaakceptowany prototyp izolowany,
-- po ukończeniu następuje final-lock do dokładnego zaakceptowanego artworku,
-- `prefers-reduced-motion` pokazuje od razu finalny artwork, copy i CTA,
-- HOLD, matte, plamy intro, blackout i Story Camera pozostają bez zmian względem r8.9.
+## r8.14 — smooth wordmark
+- `real-pen-v3` zamiast runtime `real-pen-v2`,
+- 24 fazy i ich timing pozostają bez zmian,
+- 24 osobne maski/warstwy artworku zastąpione jedną maską i jednym renderem final-artwork,
+- każda faza nadal jest ograniczona swoim `own-*` clipem,
+- centerline wygładzony: RDP `0.75 px` + krzywe quadratic,
+- round linecap/linejoin podczas aktywnego ruchu,
+- fazy jeszcze nierozpoczęte są całkowicie ukryte,
+- animator pomija DOM writes dla faz, których progress się nie zmienia,
+- po zakończeniu nadal następuje exact `final-lock`.
 
-## Status
-To jest **kandydat Etapu 3**, nie nowa zaakceptowana baza dopóki nie przejdzie oceny.
+## Timing intro
+Wordmark start `340 ms`, długość osi `6134.6 ms`, copy `5200 / 6050 ms`, CTA `7850 ms`. HOLD, matte i Story Camera bez zmian względem r8.13.
 
-Publikuj zawartość katalogu `REPO/` przez GitHub Pages lub zwykły hosting statyczny.
-
-
-## r8.13 — Stage 4 intro choreography candidate
-- wordmark real-pen-v2 bez zmian geometrycznych,
-- copy pojawia się jeszcze podczas końcówki pisania zamiast dopiero po pełnym zakończeniu,
-- copy i CTA używają wyłącznie opacity (bez pionowego zjazdu),
-- CTA pozostaje zgrane z końcem 8-sekundowego wzrostu plam intro,
-- wyjście z blackoutu do Story Camera wydłużone i z osobnym, lekko opóźnionym wejściem panelu.
+Przed uznaniem r8.14 za bazę wymagany jest test płynności na prawdziwym telefonie. Publikuj zawartość katalogu `REPO/`.

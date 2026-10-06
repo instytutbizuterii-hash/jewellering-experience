@@ -9,7 +9,8 @@ const matteSprite = document.querySelector('#inkMatte');
 const matteFallback = document.querySelector('#matteFallback');
 
 const wordmark = document.querySelector('#wordmark');
-const wordmarkMoves = Array.from(wordmark?.querySelectorAll('#pen-layers > g') ?? []);
+const wordmarkPens = Array.from(wordmark?.querySelectorAll('#wordmark-reveal [data-id]') ?? []);
+const wordmarkAnimatedArtwork = wordmark?.querySelector('#animated-artwork');
 const wordmarkFinalLock = wordmark?.querySelector('#final-lock');
 
 const storyStage = document.querySelector('#storyStage');
@@ -122,34 +123,32 @@ function scheduleIntro(callback, delay, runId) {
 }
 
 function prepareWordmark() {
-  if (!wordmark || !wordmarkFinalLock || wordmarkMoves.length === 0) return;
+  if (!wordmark || !wordmarkAnimatedArtwork || !wordmarkFinalLock || wordmarkPens.length === 0) return;
 
-  handwritingMoveData = wordmarkMoves.map((group) => {
-    const id = group.dataset.id;
-    const pen = id ? wordmark.querySelector(`#pen-${CSS.escape(id)}`) : null;
-    if (!id || !pen) return null;
+  handwritingMoveData = wordmarkPens.map((pen) => {
+    const id = pen.dataset.id;
+    if (!id) return null;
 
-    const start = Number(group.dataset.startMs ?? 0);
-    const end = Number(group.dataset.endMs ?? start + 1);
+    const start = Number(pen.dataset.startMs ?? 0);
+    const end = Number(pen.dataset.endMs ?? start + 1);
     const isDot = pen.tagName.toLowerCase() === 'circle';
-    let length = 0;
+    const length = isDot ? 0 : Math.max(pen.getTotalLength(), 1);
 
     if (isDot) {
       pen.style.opacity = '0';
     } else {
-      length = Math.max(Number(pen.dataset.length ?? pen.getTotalLength()), 1);
       pen.style.strokeDasharray = `${length}`;
       pen.style.strokeDashoffset = `${length}`;
+      pen.style.opacity = '0';
     }
 
-    group.style.opacity = '1';
-    return { group, pen, start, end, isDot, length };
+    return { pen, start, end, isDot, length, lastLocal: -1, isVisible: false };
   }).filter(Boolean);
 
-  handwritingPrepared = handwritingMoveData.length === wordmarkMoves.length;
+  handwritingPrepared = handwritingMoveData.length === wordmarkPens.length;
   if (!handwritingPrepared) {
     wordmarkFinalLock.style.opacity = '1';
-    wordmarkMoves.forEach((group) => { group.style.opacity = '0'; });
+    wordmarkAnimatedArtwork.style.opacity = '0';
     wordmark.classList.add('is-prepared');
     const runId = ++introRunId;
     intro.classList.add('is-ink-growing');
@@ -158,6 +157,7 @@ function prepareWordmark() {
   }
 
   wordmarkFinalLock.style.opacity = '0';
+  wordmarkAnimatedArtwork.style.opacity = '1';
   wordmark.classList.add('is-prepared');
   playIntroSequence();
 }
@@ -167,9 +167,14 @@ function setHandwritingTime(elapsedMs) {
 
   const current = clamp(elapsedMs, 0, HANDWRITING_TARGET_DURATION);
 
-  handwritingMoveData.forEach(({ pen, start, end, isDot, length }) => {
+  handwritingMoveData.forEach((move) => {
+    const { pen, start, end, isDot, length } = move;
     const duration = Math.max(end - start, 1);
     const local = clamp((current - start) / duration);
+
+    // Completed and not-yet-started phases no longer generate DOM writes on every frame.
+    if (Math.abs(local - move.lastLocal) < 0.00001) return;
+    move.lastLocal = local;
 
     if (isDot) {
       const dotProgress = 1 - Math.pow(1 - local, 3);
@@ -177,17 +182,21 @@ function setHandwritingTime(elapsedMs) {
       return;
     }
 
+    const visible = local > 0;
+    if (visible !== move.isVisible) {
+      pen.style.opacity = visible ? '1' : '0';
+      move.isVisible = visible;
+    }
     pen.style.strokeDashoffset = `${length * (1 - local)}`;
   });
 
   const complete = current >= HANDWRITING_TARGET_DURATION - 1;
   wordmarkFinalLock.style.opacity = complete ? '1' : '0';
-  wordmarkMoves.forEach((group) => {
-    group.style.opacity = complete ? '0' : '1';
-  });
+  wordmarkAnimatedArtwork.style.opacity = complete ? '0' : '1';
 }
 
 function resetHandwritingGeometry() {
+  handwritingMoveData.forEach((move) => { move.lastLocal = -1; });
   setHandwritingTime(0);
 }
 
