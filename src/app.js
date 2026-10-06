@@ -9,37 +9,8 @@ const matteSprite = document.querySelector('#inkMatte');
 const matteFallback = document.querySelector('#matteFallback');
 
 const wordmark = document.querySelector('#wordmark');
-const wordmarkStrokes = Array.from(document.querySelectorAll('.wordmark-reveal-path'));
-const wordmarkMarks = Array.from(document.querySelectorAll('.wordmark-reveal-mark'));
-const wordmarkArtwork = document.querySelector('#wordmarkArtwork');
-
-const wordmarkArtworkReady = (() => {
-  const src = wordmarkArtwork?.getAttribute('href');
-  if (!src) return Promise.resolve();
-
-  return new Promise((resolve) => {
-    const preloader = new Image();
-    let settled = false;
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-    const decodeAndFinish = () => {
-      if (typeof preloader.decode !== 'function') {
-        done();
-        return;
-      }
-      preloader.decode().catch(() => {}).finally(done);
-    };
-
-    preloader.addEventListener('load', decodeAndFinish, { once: true });
-    preloader.addEventListener('error', done, { once: true });
-    preloader.src = src;
-
-    if (preloader.complete && preloader.naturalWidth > 0) decodeAndFinish();
-  });
-})();
+const wordmarkMoves = Array.from(wordmark?.querySelectorAll('#pen-layers > g') ?? []);
+const wordmarkFinalLock = wordmark?.querySelector('#final-lock');
 
 const storyStage = document.querySelector('#storyStage');
 const storyWorld = document.querySelector('#storyWorld');
@@ -63,14 +34,18 @@ const storyImageReady = new Promise((resolve) => {
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const HANDWRITING_TARGET_DURATION = 3400;
+const HANDWRITING_TARGET_DURATION = 6134.6;
 const HANDWRITING_START_DELAY = 340;
+const INTRO_COPY_ONE_AT = 5200;
+const INTRO_COPY_TWO_AT = 6050;
+const INTRO_CTA_AT = 7850;
 const HOLD_INK_FRAME_COUNT = 24;
 const HOLD_INK_ATLAS_COLUMNS = 6;
 const HOLD_INK_ATLAS_ROWS = 4;
 const STORY_CAMERA_MS = reducedMotion ? 0 : 1280;
 const STORY_PANEL_HIDE_MS = reducedMotion ? 0 : 180;
-const STORY_REVEAL_MS = reducedMotion ? 0 : 900;
+const STORY_REVEAL_MS = reducedMotion ? 0 : 1050;
+const STORY_PANEL_REVEAL_DELAY_MS = reducedMotion ? 0 : 220;
 const STORY_IMAGE_WIDTH = 1448;
 const STORY_IMAGE_HEIGHT = 1086;
 
@@ -125,14 +100,14 @@ let entered = false;
 let introRunId = 0;
 let introTimers = [];
 let handwritingPrepared = false;
-let handwritingStrokeData = [];
-let handwritingMarkData = [];
+let handwritingMoveData = [];
 let storyIndex = 0;
 let storyMoving = false;
 let storyBaseWidth = 0;
 let storyBaseHeight = 0;
 let storyTransitionTimer = 0;
 let storyRevealTimer = 0;
+let storyPanelRevealTimer = 0;
 
 function clearIntroTimers() {
   introTimers.forEach(window.clearTimeout);
@@ -146,59 +121,74 @@ function scheduleIntro(callback, delay, runId) {
   introTimers.push(timer);
 }
 
-function easeWriting(value) {
-  const progress = clamp(value);
-  return progress * progress * (3 - 2 * progress);
-}
-
 function prepareWordmark() {
-  handwritingStrokeData = wordmarkStrokes.map((path) => {
-    const length = Math.max(path.getTotalLength(), 1);
-    const start = Number(path.dataset.start ?? 0);
-    const end = Number(path.dataset.end ?? 1);
+  if (!wordmark || !wordmarkFinalLock || wordmarkMoves.length === 0) return;
 
-    path.style.strokeDasharray = `${length}`;
-    path.style.strokeDashoffset = `${length}`;
+  handwritingMoveData = wordmarkMoves.map((group) => {
+    const id = group.dataset.id;
+    const pen = id ? wordmark.querySelector(`#pen-${CSS.escape(id)}`) : null;
+    if (!id || !pen) return null;
 
-    return { path, length, start, end };
-  });
+    const start = Number(group.dataset.startMs ?? 0);
+    const end = Number(group.dataset.endMs ?? start + 1);
+    const isDot = pen.tagName.toLowerCase() === 'circle';
+    let length = 0;
 
-  handwritingMarkData = wordmarkMarks.map((mark) => {
-    const start = Number(mark.dataset.start ?? 0);
-    const end = Number(mark.dataset.end ?? 1);
-    const radius = Number(mark.dataset.radius ?? 4.2);
+    if (isDot) {
+      pen.style.opacity = '0';
+    } else {
+      length = Math.max(Number(pen.dataset.length ?? pen.getTotalLength()), 1);
+      pen.style.strokeDasharray = `${length}`;
+      pen.style.strokeDashoffset = `${length}`;
+    }
 
-    mark.style.opacity = '0';
-    mark.setAttribute('r', '0');
+    group.style.opacity = '1';
+    return { group, pen, start, end, isDot, length };
+  }).filter(Boolean);
 
-    return { mark, radius, start, end };
-  });
+  handwritingPrepared = handwritingMoveData.length === wordmarkMoves.length;
+  if (!handwritingPrepared) {
+    wordmarkFinalLock.style.opacity = '1';
+    wordmarkMoves.forEach((group) => { group.style.opacity = '0'; });
+    wordmark.classList.add('is-prepared');
+    const runId = ++introRunId;
+    intro.classList.add('is-ink-growing');
+    scheduleIntroChoreography(runId);
+    return;
+  }
 
-  handwritingPrepared = true;
+  wordmarkFinalLock.style.opacity = '0';
   wordmark.classList.add('is-prepared');
   playIntroSequence();
 }
 
-function setHandwritingProgress(progress) {
-  const globalProgress = clamp(progress);
+function setHandwritingTime(elapsedMs) {
+  if (!handwritingPrepared) return;
 
-  handwritingStrokeData.forEach(({ path, length, start, end }) => {
-    const range = Math.max(end - start, 0.001);
-    const local = easeWriting((globalProgress - start) / range);
-    path.style.strokeDashoffset = `${length * (1 - local)}`;
+  const current = clamp(elapsedMs, 0, HANDWRITING_TARGET_DURATION);
+
+  handwritingMoveData.forEach(({ pen, start, end, isDot, length }) => {
+    const duration = Math.max(end - start, 1);
+    const local = clamp((current - start) / duration);
+
+    if (isDot) {
+      const dotProgress = 1 - Math.pow(1 - local, 3);
+      pen.style.opacity = String(dotProgress);
+      return;
+    }
+
+    pen.style.strokeDashoffset = `${length * (1 - local)}`;
   });
 
-  handwritingMarkData.forEach(({ mark, radius, start, end }) => {
-    const range = Math.max(end - start, 0.001);
-    const local = easeWriting((globalProgress - start) / range);
-    mark.style.opacity = String(local);
-    mark.setAttribute('r', `${radius * local}`);
+  const complete = current >= HANDWRITING_TARGET_DURATION - 1;
+  wordmarkFinalLock.style.opacity = complete ? '1' : '0';
+  wordmarkMoves.forEach((group) => {
+    group.style.opacity = complete ? '0' : '1';
   });
 }
 
 function resetHandwritingGeometry() {
-  if (!handwritingPrepared) return;
-  setHandwritingProgress(0);
+  setHandwritingTime(0);
 }
 
 function revealCTAWhenReady(runId) {
@@ -208,16 +198,15 @@ function revealCTAWhenReady(runId) {
   });
 }
 
-function revealIntroCopy(runId) {
-  scheduleIntro(() => intro.classList.add('is-copy-one-visible'), 260, runId);
-  scheduleIntro(() => intro.classList.add('is-copy-two-visible'), 760, runId);
-  scheduleIntro(() => revealCTAWhenReady(runId), 1370, runId);
+function scheduleIntroChoreography(runId) {
+  scheduleIntro(() => intro.classList.add('is-copy-one-visible'), INTRO_COPY_ONE_AT, runId);
+  scheduleIntro(() => intro.classList.add('is-copy-two-visible'), INTRO_COPY_TWO_AT, runId);
+  scheduleIntro(() => revealCTAWhenReady(runId), INTRO_CTA_AT, runId);
 }
 
 function finishHandwriting(runId) {
   if (runId !== introRunId) return;
-  setHandwritingProgress(1);
-  revealIntroCopy(runId);
+  setHandwritingTime(HANDWRITING_TARGET_DURATION);
 }
 
 function animateHandwriting(runId) {
@@ -226,10 +215,10 @@ function animateHandwriting(runId) {
   function tick(now) {
     if (runId !== introRunId) return;
 
-    const progress = clamp((now - startedAt) / HANDWRITING_TARGET_DURATION);
-    setHandwritingProgress(progress);
+    const elapsed = now - startedAt;
+    setHandwritingTime(elapsed);
 
-    if (progress < 1) {
+    if (elapsed < HANDWRITING_TARGET_DURATION) {
       requestAnimationFrame(tick);
       return;
     }
@@ -256,10 +245,12 @@ function playIntroSequence() {
   resetHandwritingGeometry();
 
   if (reducedMotion) {
-    setHandwritingProgress(1);
+    setHandwritingTime(HANDWRITING_TARGET_DURATION);
     intro.classList.add('is-ink-growing', 'is-copy-one-visible', 'is-copy-two-visible', 'is-cta-visible');
     return;
   }
+
+  scheduleIntroChoreography(runId);
 
   scheduleIntro(() => {
     intro.classList.add('is-ink-growing');
@@ -338,11 +329,14 @@ function fitStoryCamera(animate = false) {
 function resetStoryCamera() {
   window.clearTimeout(storyTransitionTimer);
   window.clearTimeout(storyRevealTimer);
+  window.clearTimeout(storyPanelRevealTimer);
   storyTransitionTimer = 0;
   storyRevealTimer = 0;
+  storyPanelRevealTimer = 0;
   storyMoving = false;
   storyIndex = 0;
   storyPanel.classList.remove('is-changing');
+  experience.classList.remove('is-story-panel-ready');
   storyNext.disabled = true;
   renderStoryPanel(storyIndex);
   requestAnimationFrame(() => fitStoryCamera(false));
@@ -383,7 +377,7 @@ function mountHistoryUnderMatte() {
   entered = true;
   experience.hidden = false;
   intro.hidden = true;
-  experience.classList.remove('is-story-ready');
+  experience.classList.remove('is-story-ready', 'is-story-panel-ready');
   document.body.classList.add('experience-started');
   resetStoryCamera();
   window.scrollTo(0, 0);
@@ -400,16 +394,24 @@ function revealStoryCamera() {
 
   document.body.classList.remove('is-transitioning');
   window.clearTimeout(storyRevealTimer);
+  window.clearTimeout(storyPanelRevealTimer);
 
   requestAnimationFrame(() => {
     fitStoryCamera(false);
     experience.classList.add('is-story-ready');
 
     if (STORY_REVEAL_MS <= 0) {
+      experience.classList.add('is-story-panel-ready');
       if (themeColor) themeColor.setAttribute('content', '#eee7e1');
       storyNext.disabled = false;
       return;
     }
+
+    storyPanelRevealTimer = window.setTimeout(() => {
+      if (!entered) return;
+      experience.classList.add('is-story-panel-ready');
+      storyPanelRevealTimer = 0;
+    }, STORY_PANEL_REVEAL_DELAY_MS);
 
     storyRevealTimer = window.setTimeout(() => {
       if (!entered) return;
@@ -490,4 +492,4 @@ storyMasterImage.addEventListener('load', () => {
   fitStoryCamera(false);
 });
 
-wordmarkArtworkReady.then(() => prepareWordmark());
+prepareWordmark();
