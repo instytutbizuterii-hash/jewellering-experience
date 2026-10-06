@@ -1,21 +1,18 @@
-# Biżufitting Experience
+# Biżufitting Experience — REPO
 
-Wersja wykonawcza: **0.1.20-r8.14 candidate**.
+Wersja wykonawcza: **0.1.20-r8.15 candidate**.
 
-Baza tej paczki: przesłany `r8.13 Stage 4 choreography`. Kandydat r8.14 zmienia wyłącznie mechanizm animacji wordmarku oraz token wersji. HOLD, matte, intro stains, assety i Story Camera pozostają bez zmian.
+Baza: zaakceptowana płynność `r8.14`, z poprawką jakości samego rysowania wordmarku. HOLD, matte, intro stains, assety i Story Camera pozostają bez zmian.
 
-## r8.14 — smooth wordmark
-- `real-pen-v3` zamiast runtime `real-pen-v2`,
-- 24 fazy i ich timing pozostają bez zmian,
-- 24 osobne maski/warstwy artworku zastąpione jedną maską i jednym renderem final-artwork,
-- każda faza nadal jest ograniczona swoim `own-*` clipem,
-- centerline wygładzony: RDP `0.75 px` + krzywe quadratic,
-- round linecap/linejoin podczas aktywnego ruchu,
-- fazy jeszcze nierozpoczęte są całkowicie ukryte,
-- animator pomija DOM writes dla faz, których progress się nie zmienia,
-- po zakończeniu nadal następuje exact `final-lock`.
+## r8.15 — writing quality
+- finalny artwork SVG pozostaje bez zmian,
+- 24 fazy i ich ownership clipy pozostają bez zmian,
+- pełna okrągła kreska jest opóźniona względem pozycji pióra, a aktywny czubek prowadzi wąski round nib,
+- ruch każdej fazy jest wyrównany według faktycznie odsłanianej powierzchni, więc powroty po już narysowanej kresce nie tworzą długich wizualnych postojów,
+- każda faza domyka wyłącznie własne piksele w krótkim końcowym oknie,
+- brak przełączenia `animated-artwork → final-lock` po 100%, więc znika końcowy snap.
 
-## Timing intro
-Wordmark start `340 ms`, długość osi `6134.6 ms`, copy `5200 / 6050 ms`, CTA `7850 ms`. HOLD, matte i Story Camera bez zmian względem r8.13.
+## Timing
+Wordmark: 6134.6 ms, start po 340 ms. Copy: 5200 / 6050 ms. CTA: 7850 ms.
 
-Przed uznaniem r8.14 za bazę wymagany jest test płynności na prawdziwym telefonie. Publikuj zawartość katalogu `REPO/`.
+Publikuj zawartość katalogu `REPO/`.
