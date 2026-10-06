@@ -1,10 +1,10 @@
 # Biżufitting Experience — REPO
 
-Wersja wykonawcza: **0.1.20-r8.15 candidate**.
+Wersja wykonawcza: **0.1.20-r8.16 candidate**.
 
 Baza: zaakceptowana płynność `r8.14`, z poprawką jakości samego rysowania wordmarku. HOLD, matte, intro stains, assety i Story Camera pozostają bez zmian.
 
-## r8.15 — writing quality
+## r8.16 — writing quality
 - finalny artwork SVG pozostaje bez zmian,
 - 24 fazy i ich ownership clipy pozostają bez zmian,
 - pełna okrągła kreska jest opóźniona względem pozycji pióra, a aktywny czubek prowadzi wąski round nib,
