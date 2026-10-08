@@ -1,3 +1,5 @@
-# Biżufitting Experience — runtime v0.1.20-r8.17
+# Biżufitting Experience — v0.1.20 r8.20.2
 
-Wordmark: variable-profile ribbon reveal built from the accepted final SVG. HOLD, matte and Story Camera remain protected from r8.15.
+Stage 2 final-cleanup candidate. Runtime wordmark engine is inherited unchanged from r8.20.1; this revision only finalizes package structure, release metadata and documentation.
+
+Protected behavior: HOLD, matte/blackout, Story, styles, assets and wordmark engine data.

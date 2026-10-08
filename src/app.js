@@ -9,9 +9,10 @@ const matteSprite = document.querySelector('#inkMatte');
 const matteFallback = document.querySelector('#matteFallback');
 
 const wordmark = document.querySelector('#wordmark');
-const wordmarkPhaseGroups = Array.from(wordmark?.querySelectorAll('#wordmark-reveal [data-phase-id]') ?? []);
+const wordmarkEngineData = window.BIZU_WORDMARK_DATA ?? null;
 const wordmarkAnimatedArtwork = wordmark?.querySelector('#animated-artwork');
 const wordmarkFinalLock = wordmark?.querySelector('#final-lock');
+const wordmarkCompletionArtwork = wordmark?.querySelector('#completion-artwork');
 
 const storyStage = document.querySelector('#storyStage');
 const storyWorld = document.querySelector('#storyWorld');
@@ -36,6 +37,7 @@ const storyImageReady = new Promise((resolve) => {
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const HANDWRITING_TARGET_DURATION = 6134.6;
+const WORDMARK_COMPLETION_START = 6034.6;
 const HANDWRITING_START_DELAY = 340;
 const INTRO_COPY_ONE_AT = 5200;
 const INTRO_COPY_TWO_AT = 6050;
@@ -123,157 +125,186 @@ function scheduleIntro(callback, delay, runId) {
   introTimers.push(timer);
 }
 
-function setSegmentProgress(segment, progress) {
-  const p = clamp(progress);
-  if (p <= 0) {
-    segment.style.opacity = '0';
-    segment.style.strokeDashoffset = `${segment.__length}`;
-    return;
+function getWordmarkProgress(stroke, timeMs) {
+  if (timeMs <= stroke.start_ms) return 0;
+  if (timeMs >= stroke.end_ms) return 1;
+
+  const checkpoints = stroke.checkpoints ?? [];
+  const checkpoint = checkpoints.find((item) => (
+    timeMs >= item.start_ms && timeMs <= item.end_ms
+  )) ?? checkpoints[checkpoints.length - 1];
+
+  if (!checkpoint) {
+    return clamp((timeMs - stroke.start_ms) / Math.max(1, stroke.end_ms - stroke.start_ms));
   }
-  segment.style.opacity = '1';
-  segment.style.strokeDashoffset = `${segment.__length * (1 - p)}`;
+
+  const local = clamp(
+    (timeMs - checkpoint.start_ms) / Math.max(1, checkpoint.end_ms - checkpoint.start_ms),
+  );
+  return checkpoint.s0 + (checkpoint.s1 - checkpoint.s0) * local;
 }
 
-function setPhaseState(phase, local) {
-  const p = clamp(local);
-  if (phase.isDot) {
-    phase.dot.style.opacity = String(1 - Math.pow(1 - p, 3));
-    phase.lastLocal = p;
-    return;
-  }
+function setWordmarkStrokeRandom(stroke, progress) {
+  let lastCompletedIndex = -1;
 
-  phase.patches.forEach((patch) => {
-    const span = Math.max(patch.__end - patch.__start, 0.000001);
-    const q = clamp((p - patch.__start) / span);
-    const smooth = q * q * (3 - 2 * q);
-    patch.style.opacity = String(smooth);
+  stroke.elements.forEach((element, index) => {
+    const start = element.__s0;
+    const end = element.__s1;
+    let opacity = 0;
+
+    if (progress >= end) {
+      opacity = 1;
+      lastCompletedIndex = index;
+    } else if (progress > start) {
+      opacity = clamp((progress - start) / Math.max(end - start, 0.000001));
+    }
+
+    element.style.opacity = String(opacity);
   });
 
-  if (p <= 0) {
-    if (phase.state !== 0) {
-      phase.segments.forEach((segment) => setSegmentProgress(segment, 0));
-      phase.patches.forEach((patch) => { patch.style.opacity = '0'; });
-      phase.state = 0;
-      phase.activeIndex = -1;
-    }
-    phase.lastLocal = 0;
+  stroke.lastProgress = progress;
+  stroke.lastCompletedIndex = lastCompletedIndex;
+}
+
+function setWordmarkStrokeForward(stroke, progress) {
+  if (stroke.lastProgress < 0 || progress < stroke.lastProgress - 0.000001) {
+    setWordmarkStrokeRandom(stroke, progress);
     return;
   }
 
-  if (p >= 1) {
-    if (phase.state !== 2) {
-      phase.segments.forEach((segment) => setSegmentProgress(segment, 1));
-      phase.patches.forEach((patch) => { patch.style.opacity = '1'; });
-      phase.state = 2;
-      phase.activeIndex = phase.segments.length - 1;
-    }
-    phase.lastLocal = 1;
-    return;
+  if (Math.abs(progress - stroke.lastProgress) < 0.000001) return;
+
+  const elements = stroke.elements;
+  let index = stroke.lastCompletedIndex;
+
+  while (index + 1 < elements.length && progress >= elements[index + 1].__s1) {
+    index += 1;
+    if (elements[index].style.opacity !== '1') elements[index].style.opacity = '1';
   }
 
-  phase.state = 1;
-  let lo = 0;
-  let hi = phase.segments.length - 1;
-  let index = hi;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (p <= phase.segments[mid].__areaEnd) {
-      index = mid;
-      hi = mid - 1;
-    } else {
-      lo = mid + 1;
+  const activeIndex = index + 1;
+  if (activeIndex < elements.length) {
+    const element = elements[activeIndex];
+    let opacity = 0;
+    if (progress > element.__s0 && progress < element.__s1) {
+      opacity = clamp(
+        (progress - element.__s0) / Math.max(element.__s1 - element.__s0, 0.000001),
+      );
     }
+    const value = String(opacity);
+    if (element.style.opacity !== value) element.style.opacity = value;
   }
 
-  if (index !== phase.activeIndex) {
-    const from = Math.max(0, Math.min(index, phase.activeIndex < 0 ? 0 : phase.activeIndex));
-    const to = Math.max(index, phase.activeIndex);
-    for (let i = from; i <= to; i += 1) {
-      if (i < index) setSegmentProgress(phase.segments[i], 1);
-      else if (i > index) setSegmentProgress(phase.segments[i], 0);
-    }
-    phase.activeIndex = index;
-  }
+  stroke.lastProgress = progress;
+  stroke.lastCompletedIndex = index;
+}
 
-  const segment = phase.segments[index];
-  const span = Math.max(segment.__areaEnd - segment.__areaStart, 0.000001);
-  setSegmentProgress(segment, (p - segment.__areaStart) / span);
-  phase.lastLocal = p;
+function showWordmarkFallback() {
+  if (wordmarkFinalLock) wordmarkFinalLock.style.opacity = '1';
+  if (wordmarkAnimatedArtwork) wordmarkAnimatedArtwork.style.opacity = '0';
+  wordmark?.classList.add('is-prepared');
 }
 
 function prepareWordmark() {
-  if (!wordmark || !wordmarkAnimatedArtwork || !wordmarkFinalLock || wordmarkPhaseGroups.length === 0) return;
+  const data = wordmarkEngineData;
+  if (!wordmark || !wordmarkAnimatedArtwork || !wordmarkFinalLock || !wordmarkCompletionArtwork || !data) {
+    showWordmarkFallback();
+    return;
+  }
 
-  handwritingMoveData = wordmarkPhaseGroups.map((group) => {
-    const id = group.dataset.phaseId;
-    const start = Number(group.dataset.startMs ?? 0);
-    const end = Number(group.dataset.endMs ?? start + 1);
-    const dot = group.querySelector('[data-dot="1"]');
-    if (dot) {
-      dot.style.opacity = '0';
-      return { id, start, end, isDot: true, dot, segments: [], patches: [], lastLocal: -1, state: 0, activeIndex: -1 };
-    }
+  const strokes = (data.strokes ?? []).map((strokeData) => {
+    const elements = Array.from(
+      wordmark.querySelectorAll(`[data-reveal-chunk="1"][data-stroke="${strokeData.id}"]`),
+    ).sort((a, b) => Number(a.dataset.s0) - Number(b.dataset.s0));
 
-    const patches = Array.from(group.querySelectorAll('[data-patch="1"]'));
-    patches.forEach((patch) => {
-      patch.__start = Number(patch.dataset.patchStart ?? 0);
-      patch.__end = Number(patch.dataset.patchEnd ?? 1);
-      patch.style.opacity = '0';
+    elements.forEach((element) => {
+      element.__s0 = Number(element.dataset.s0 ?? 0);
+      element.__s1 = Number(element.dataset.s1 ?? 1);
+      element.style.opacity = '0';
     });
 
-    const segments = Array.from(group.querySelectorAll('[data-seg]'));
-    segments.forEach((segment) => {
-      const length = Math.max(segment.getTotalLength(), 0.01);
-      segment.__length = length;
-      segment.__areaStart = Number(segment.dataset.areaStart ?? 0);
-      segment.__areaEnd = Number(segment.dataset.areaEnd ?? 1);
-      segment.style.strokeDasharray = `${length}`;
-      segment.style.strokeDashoffset = `${length}`;
-      segment.style.opacity = '0';
-    });
-    return { id, start, end, isDot: false, dot: null, segments, patches, lastLocal: -1, state: 0, activeIndex: -1 };
+    return {
+      ...strokeData,
+      elements,
+      lastProgress: -1,
+      lastCompletedIndex: -1,
+    };
   });
 
-  handwritingPrepared = handwritingMoveData.length === wordmarkPhaseGroups.length;
+  const dots = (data.dots ?? []).map((dotData) => {
+    const element = wordmark.querySelector(`[data-reveal-dot="${dotData.id}"]`);
+    if (element) element.style.opacity = '0';
+    return { ...dotData, element, lastProgress: -1 };
+  });
+
+  const allStrokesValid = strokes.length > 0 && strokes.every((stroke) => stroke.elements.length > 0);
+  const allDotsValid = dots.every((dot) => Boolean(dot.element));
+  handwritingPrepared = allStrokesValid && allDotsValid;
+
   if (!handwritingPrepared) {
-    wordmarkFinalLock.style.opacity = '1';
-    wordmarkAnimatedArtwork.style.opacity = '0';
-    wordmark.classList.add('is-prepared');
+    showWordmarkFallback();
     const runId = ++introRunId;
     intro.classList.add('is-ink-growing');
     scheduleIntroChoreography(runId);
     return;
   }
 
+  handwritingMoveData = { strokes, dots };
+  wordmarkCompletionArtwork.style.opacity = '0';
   wordmarkFinalLock.style.opacity = '0';
   wordmarkAnimatedArtwork.style.opacity = '1';
   wordmark.classList.add('is-prepared');
   playIntroSequence();
 }
 
-function setHandwritingTime(elapsedMs) {
+function setHandwritingTime(elapsedMs, randomAccess = false) {
   if (!handwritingPrepared) return;
+
   const current = clamp(elapsedMs, 0, HANDWRITING_TARGET_DURATION);
 
-  handwritingMoveData.forEach((phase) => {
-    const duration = Math.max(phase.end - phase.start, 1);
-    const local = clamp((current - phase.start) / duration);
-    if (Math.abs(local - phase.lastLocal) < 0.00001) return;
-    setPhaseState(phase, local);
+  handwritingMoveData.strokes.forEach((stroke) => {
+    const progress = getWordmarkProgress(stroke, current);
+    if (randomAccess) setWordmarkStrokeRandom(stroke, progress);
+    else setWordmarkStrokeForward(stroke, progress);
   });
 
-  // final-lock is failure fallback only. The ribbon mask itself remains active at 100%.
+  handwritingMoveData.dots.forEach((dot) => {
+    const progress = clamp(
+      (current - dot.start_ms) / Math.max(1, dot.end_ms - dot.start_ms),
+    );
+    if (Math.abs(progress - dot.lastProgress) < 0.000001) return;
+    dot.lastProgress = progress;
+    const smooth = progress * progress * (3 - 2 * progress);
+    dot.element.style.opacity = String(smooth);
+  });
+
+  const completionProgress = clamp(
+    (current - WORDMARK_COMPLETION_START)
+      / Math.max(1, HANDWRITING_TARGET_DURATION - WORDMARK_COMPLETION_START),
+  );
+  const completionSmooth = completionProgress * completionProgress * (3 - 2 * completionProgress);
+  wordmarkCompletionArtwork.style.opacity = String(completionSmooth);
+  wordmarkAnimatedArtwork.style.opacity = String(1 - completionSmooth);
+
+  // Crossfade ends on the exact artwork; there is no single-frame final swap.
   wordmarkFinalLock.style.opacity = '0';
-  wordmarkAnimatedArtwork.style.opacity = '1';
 }
 
 function resetHandwritingGeometry() {
-  handwritingMoveData.forEach((phase) => {
-    phase.lastLocal = -1;
-    phase.state = -1;
-    phase.activeIndex = -1;
+  if (!handwritingPrepared) return;
+
+  handwritingMoveData.strokes.forEach((stroke) => {
+    stroke.lastProgress = -1;
+    stroke.lastCompletedIndex = -1;
+    stroke.elements.forEach((element) => { element.style.opacity = '0'; });
   });
-  setHandwritingTime(0);
+  handwritingMoveData.dots.forEach((dot) => {
+    dot.lastProgress = -1;
+    dot.element.style.opacity = '0';
+  });
+  wordmarkCompletionArtwork.style.opacity = '0';
+
+  setHandwritingTime(0, true);
 }
 
 function revealCTAWhenReady(runId) {
